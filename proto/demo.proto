@@ -1,0 +1,16 @@
+syntax = "proto3";
+option java_package = "violet.video.common.proto_gen";
+option go_package="/proto_gen";
+
+service Demo {
+  rpc GetMessage (DemoRequest) returns (DemoResponse) {}
+}
+
+message DemoRequest {
+  string param = 1;
+}
+
+message DemoResponse {
+  string message = 1;
+}
+
