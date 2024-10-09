@@ -21,7 +21,8 @@ var upgrader = websocket.Upgrader{
 func WebsocketHandler(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("[WebsocketHandler] upgrade websocket err. err = %v", err)
+		return
 	}
 
 	defer conn.Close()
@@ -31,16 +32,15 @@ func WebsocketHandler(c *gin.Context) {
 	for {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Println(err)
+			log.Printf("[WebsocketHandler] read message err. err = %v", err)
 			return
 		}
-		log.Println("server receive messageType", messageType, "message", string(message))
+		log.Printf("[WebsocketHandler] receive message. messageType = %v, message = %v", messageType, message)
 
-		err = conn.WriteMessage(messageType, []byte("pong"))
+		err = conn.WriteMessage(websocket.TextMessage, []byte("pong"))
 		if err != nil {
-			log.Println(err)
+			log.Printf("[WebsocketHandler] write message err. err = %v", err)
 			return
 		}
 	}
-
 }

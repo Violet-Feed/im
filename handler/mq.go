@@ -16,11 +16,11 @@ func init() {
 	var err error
 	p, err = rocketmq.NewProducer(producer.WithNameServer([]string{"127.0.0.1:9876"}))
 	if err != nil {
-		log.Fatalf("生成producer失败：", err)
+		log.Fatalf("[init] rocketmq producer create err. err = %v", err)
 	}
 	err = p.Start()
 	if err != nil {
-		log.Fatalf("启动producer错误：", err)
+		log.Fatalf("[init] rocketmq producer run err. err = %v", err)
 	}
 }
 

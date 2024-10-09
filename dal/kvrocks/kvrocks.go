@@ -14,8 +14,13 @@ type KvrocksServiceImpl struct {
 	client *redis.Client
 }
 
-func NewKvrocksServiceImpl(client *redis.Client) KvrocksServiceImpl {
-	return KvrocksServiceImpl{client: client}
+func NewKvrocksServiceImpl() KvrocksServiceImpl {
+	kvrocksClient := redis.NewClient(&redis.Options{
+		Addr:     "127.0.0.1:6666",
+		Password: "",
+		DB:       0,
+	})
+	return KvrocksServiceImpl{client: kvrocksClient}
 }
 
 func (k KvrocksServiceImpl) Set(ctx context.Context, key string, value string) error {
