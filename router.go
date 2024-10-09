@@ -6,7 +6,7 @@ import (
 )
 
 func Router(r *gin.Engine) *gin.Engine {
-	r.GET("/message", handler.GetMessage)
+	r.GET("/demo", handler.GetMessage)
 	r.GET("/ws/:id", handler.WebsocketHandler)
 	r.GET("/test", handler.TestWs)
 	kv := r.Group("/kv")
@@ -16,5 +16,9 @@ func Router(r *gin.Engine) *gin.Engine {
 	}
 	r.GET("/mq", handler.SendMessage)
 
+	message := r.Group("/message")
+	{
+		message.POST("/send", handler.Send)
+	}
 	return r
 }

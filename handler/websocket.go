@@ -22,6 +22,8 @@ func WebsocketHandler(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Printf("[WebsocketHandler] upgrade websocket err. err = %v", err)
+		resp := Response{Code: 201, Message: "connect err", Data: nil}
+		c.JSON(http.StatusOK, resp)
 		return
 	}
 
@@ -33,14 +35,18 @@ func WebsocketHandler(c *gin.Context) {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Printf("[WebsocketHandler] read message err. err = %v", err)
-			return
+			continue
 		}
 		log.Printf("[WebsocketHandler] receive message. messageType = %v, message = %v", messageType, message)
 
-		err = conn.WriteMessage(websocket.TextMessage, []byte("pong"))
+		switch string(message) {
+		case "ping":
+			err = conn.WriteMessage(websocket.TextMessage, []byte("pong"))
+		default:
+			err = conn.WriteMessage(websocket.TextMessage, []byte("invalid message"))
+		}
 		if err != nil {
 			log.Printf("[WebsocketHandler] write message err. err = %v", err)
-			return
 		}
 	}
 }
