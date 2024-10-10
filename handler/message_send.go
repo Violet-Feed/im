@@ -2,22 +2,34 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
+	"im/proto_gen"
+	"im/util"
 	"net/http"
 )
 
-type SendRequest struct {
-	From string `json:"from"`
-	To   string `json:"to"`
+func checkMessageSendRequest(c *gin.Context, req *proto_gen.MessageSendRequest) bool {
+	return true
 }
 
 func Send(c *gin.Context) {
-	var sendRequest SendRequest
-	err := c.ShouldBindJSON(&sendRequest)
+	var messageSendRequest *proto_gen.MessageSendRequest
+	err := c.ShouldBindJSON(&messageSendRequest)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-	} else {
-		c.JSON(http.StatusOK, gin.H{})
+		c.JSON(http.StatusOK, StateCode_Param_ERROR)
+		return
 	}
+	if !checkMessageSendRequest(c, messageSendRequest) {
+		c.JSON(http.StatusOK, StateCode_Param_ERROR)
+		return
+	}
+	userId, _ := c.Get("userId")
+	messageId := util.MessageIdGenerator.Generate().Int64()
+	if messageSendRequest.GetConversationType() == int32(proto_gen.ConversationType_ConversationType_One_Chat) {
+		//尝试创建会话
+	}
+	logrus.Infof("%v %v %v", userId, messageId, messageSendRequest)
+
 	//检查合法->生成serverMsgId->异步/同步发送消息
 
 	//检查会话(单聊->创建会话(im_conversation_api)，获取会话coreInfo(im_conversation_api，redis+mysql))->检查消息(integration_callback)

@@ -22,7 +22,7 @@ const (
 	Demo_GetMessage_FullMethodName = "/Demo/GetMessage"
 )
 
-// DemoClient is the client API for Demo dal.
+// DemoClient is the client API for Demo service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DemoClient interface {
@@ -47,7 +47,7 @@ func (c *demoClient) GetMessage(ctx context.Context, in *DemoRequest, opts ...gr
 	return out, nil
 }
 
-// DemoServer is the server API for Demo dal.
+// DemoServer is the server API for Demo service.
 // All implementations must embed UnimplementedDemoServer
 // for forward compatibility.
 type DemoServer interface {
@@ -68,7 +68,7 @@ func (UnimplementedDemoServer) GetMessage(context.Context, *DemoRequest) (*DemoR
 func (UnimplementedDemoServer) mustEmbedUnimplementedDemoServer() {}
 func (UnimplementedDemoServer) testEmbeddedByValue()              {}
 
-// UnsafeDemoServer may be embedded to opt out of forward compatibility for this dal.
+// UnsafeDemoServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to DemoServer will
 // result in compilation errors.
 type UnsafeDemoServer interface {
@@ -104,7 +104,7 @@ func _Demo_GetMessage_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
-// Demo_ServiceDesc is the grpc.ServiceDesc for Demo dal.
+// Demo_ServiceDesc is the grpc.ServiceDesc for Demo service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Demo_ServiceDesc = grpc.ServiceDesc{

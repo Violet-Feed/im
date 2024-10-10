@@ -1,0 +1,28 @@
+syntax = "proto3";
+option java_package = "violet.video.common.proto_gen";
+option go_package = "/proto_gen";
+
+enum ConversationType{
+  ConversationType_Not_Use = 0;
+  ConversationType_One_Chat = 1;
+  ConversationType_Group_Chat = 2;
+  ConversationType_Service_Chat = 3;
+  ConversationType_AI_Chat = 4;
+  ConversationType_System_Chat = 5;
+}
+
+enum MessageType{
+  MessageType_Not_Use = 0;
+  MessageType_Text = 1;
+  MessageType_Image = 2;
+  MessageType_Video = 3;
+  MessageType_Forward = 4;
+}
+
+message MessageSendRequest{
+  optional string ConversationId = 1;
+  optional int64 ConversationShortId = 2;
+  optional int32 ConversationType = 3;
+  optional int32 MessageType = 4;
+  optional string MessageContent = 5;
+}

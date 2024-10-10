@@ -7,11 +7,11 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/apache/rocketmq-client-go/v2/rlog"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"im/dal"
 	demo "im/proto_gen"
-	"log"
 	"net"
 )
 
@@ -22,16 +22,16 @@ func initRocketMq() {
 	)
 	if err := c.Subscribe("test", consumer.MessageSelector{}, func(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
 		for i := range msgs {
-			log.Printf("[initRocketMq] rocketmq consume message success. message = %v", msgs[i].Body)
+			logrus.Infof("[initRocketMq] rocketmq consume message success. message = %v", msgs[i].Body)
 		}
 		return consumer.ConsumeSuccess, nil
 	}); err != nil {
-		log.Printf("[initRocketMq] rocketmq consume message err. err = %v", err)
+		logrus.Infof("[initRocketMq] rocketmq consume message err. err = %v", err)
 	}
 	rlog.SetLogLevel("warn")
 	err := c.Start()
 	if err != nil {
-		log.Fatalf("[initRocketMq] rocketmq consumer run err. err = %v", err)
+		logrus.Fatalf("[initRocketMq] rocketmq consumer run err. err = %v", err)
 	}
 }
 
@@ -47,18 +47,18 @@ func main() {
 		r := gin.Default()
 		r = Router(r)
 		if err := r.Run(":9090"); err != nil {
-			log.Fatalf("[main] gin run err. err = %v", err)
+			logrus.Fatalf("[main] gin run err. err = %v", err)
 		}
 	}()
 
 	lis, err := net.Listen("tcp", ":9091")
 	if err != nil {
-		log.Fatalf("[main] grpc listen err. err = %v", err)
+		logrus.Fatalf("[main] grpc listen err. err = %v", err)
 	}
 	s := grpc.NewServer()
 	demo.RegisterDemoServer(s, &DemoServerImpl{})
 	reflection.Register(s)
 	if err := s.Serve(lis); err != nil {
-		log.Fatalf("[main] grpc run err. err = %v", err)
+		logrus.Fatalf("[main] grpc run err. err = %v", err)
 	}
 }

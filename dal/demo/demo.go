@@ -3,10 +3,10 @@ package demo
 import (
 	"context"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	demo "im/proto_gen"
-	"log"
 )
 
 type DemoService interface {
@@ -20,7 +20,7 @@ type DemoServiceImpl struct {
 func NewDemoServiceImpl() DemoServiceImpl {
 	demoClient, err := grpc.NewClient("127.0.0.1:8081", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("[NewDemoServiceImpl] rpc connect err. err = %v", err)
+		logrus.Fatalf("[NewDemoServiceImpl] rpc connect err. err = %v", err)
 	}
 	return DemoServiceImpl{client: demo.NewDemoClient(demoClient)}
 }
