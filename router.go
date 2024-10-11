@@ -43,7 +43,6 @@ func Router(r *gin.Engine) *gin.Engine {
 		kv.GET("/set", handler.Set)
 		kv.GET("/get", handler.Get)
 	}
-	r.GET("/mq", handler.SendMessage)
 
 	message := r.Group("/message")
 	{

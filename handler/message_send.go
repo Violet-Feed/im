@@ -2,33 +2,64 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
-	"im/proto_gen"
+	"im/dal/mq"
+	"im/handler/conversation"
+	"im/proto_gen/im"
 	"im/util"
 	"net/http"
+	"time"
 )
 
-func checkMessageSendRequest(c *gin.Context, req *proto_gen.MessageSendRequest) bool {
+func checkMessageSendRequest(c *gin.Context, req *im.MessageSendRequest) bool {
+	//TODO：参数校验
 	return true
 }
 
 func Send(c *gin.Context) {
-	var messageSendRequest *proto_gen.MessageSendRequest
+	var messageSendRequest *im.MessageSendRequest
 	err := c.ShouldBindJSON(&messageSendRequest)
+	if err != nil || !checkMessageSendRequest(c, messageSendRequest) {
+		c.JSON(http.StatusOK, StateCode_Param_ERROR)
+		return
+	}
+	id, _ := c.Get("userId")
+	userId := id.(int64)
+
+	//TODO：鉴权
+	messageId := util.MsgIdGenerator.Generate().Int64()
+	if messageSendRequest.GetConvType() == im.ConversationType_ConversationType_One_Chat {
+		if messageSendRequest.GetConvShortId() == 0 { //创建会话
+			createConversationRequest := &im.CreateConversationRequest{
+				ConvId:   messageSendRequest.ConvId,
+				ConvType: messageSendRequest.ConvType,
+				OwnerId:  &userId,
+			}
+			createConversationResponse := &im.CreateConversationResponse{}
+			err := conversation.CreateConversation(c, createConversationRequest, createConversationResponse)
+			if err != nil {
+				c.JSON(http.StatusOK, StateCode_Internal_ERROR)
+				return
+			}
+			messageSendRequest.ConvShortId = createConversationResponse.ConvShortId
+		}
+	}
+	createTime := time.Now().UnixMilli()
+	//TODO：消息频率控制
+	messageEvent := &im.MessageEvent{
+		ConvId:      messageSendRequest.ConvId,
+		ConvShortId: messageSendRequest.ConvShortId,
+		ConvType:    messageSendRequest.ConvType,
+		MsgId:       &messageId,
+		MsgType:     messageSendRequest.MsgType,
+		MsgContent:  messageSendRequest.MsgContent,
+		CreateTime:  &createTime,
+	}
+	err = mq.SendMq(c, messageEvent)
 	if err != nil {
-		c.JSON(http.StatusOK, StateCode_Param_ERROR)
+		c.JSON(http.StatusOK, StateCode_Internal_ERROR)
 		return
 	}
-	if !checkMessageSendRequest(c, messageSendRequest) {
-		c.JSON(http.StatusOK, StateCode_Param_ERROR)
-		return
-	}
-	userId, _ := c.Get("userId")
-	messageId := util.MessageIdGenerator.Generate().Int64()
-	if messageSendRequest.GetConversationType() == int32(proto_gen.ConversationType_ConversationType_One_Chat) {
-		//尝试创建会话
-	}
-	logrus.Infof("%v %v %v", userId, messageId, messageSendRequest)
+	c.JSON(http.StatusOK, 200)
 
 	//检查合法->生成serverMsgId->异步/同步发送消息
 

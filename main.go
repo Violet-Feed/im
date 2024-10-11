@@ -1,48 +1,19 @@
 package main
 
 import (
-	"context"
-	"github.com/apache/rocketmq-client-go/v2"
-	"github.com/apache/rocketmq-client-go/v2/consumer"
-	"github.com/apache/rocketmq-client-go/v2/primitive"
-	"github.com/apache/rocketmq-client-go/v2/rlog"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"im/consumer"
 	"im/dal"
 	demo "im/proto_gen"
 	"net"
 )
 
-func initRocketMq() {
-	c, _ := rocketmq.NewPushConsumer(
-		consumer.WithNameServer([]string{"127.0.0.1:9876"}),
-		consumer.WithGroupName("test"),
-	)
-	if err := c.Subscribe("test", consumer.MessageSelector{}, func(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
-		for i := range msgs {
-			logrus.Infof("[initRocketMq] rocketmq consume message success. message = %v", msgs[i].Body)
-		}
-		return consumer.ConsumeSuccess, nil
-	}); err != nil {
-		logrus.Infof("[initRocketMq] rocketmq consume message err. err = %v", err)
-	}
-	rlog.SetLogLevel("warn")
-	err := c.Start()
-	if err != nil {
-		logrus.Fatalf("[initRocketMq] rocketmq consumer run err. err = %v", err)
-	}
-}
-
 func main() {
-
 	dal.InitService()
-
-	go func() {
-		initRocketMq()
-	}()
-
+	consumer.InitConsumer()
 	go func() {
 		r := gin.Default()
 		r = Router(r)

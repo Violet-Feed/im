@@ -21,7 +21,7 @@ var upgrader = websocket.Upgrader{
 func WebsocketHandler(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		logrus.Infof("[WebsocketHandler] upgrade websocket err. err = %v", err)
+		logrus.Errorf("[WebsocketHandler] upgrade websocket err. err = %v", err)
 		resp := Response{Code: 201, Message: "connect err", Data: nil}
 		c.JSON(http.StatusOK, resp)
 		return
@@ -34,7 +34,7 @@ func WebsocketHandler(c *gin.Context) {
 	for {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
-			logrus.Infof("[WebsocketHandler] read message err. err = %v", err)
+			logrus.Errorf("[WebsocketHandler] read message err. err = %v", err)
 			continue
 		}
 		logrus.Infof("[WebsocketHandler] receive message. messageType = %v, message = %v", messageType, message)
@@ -46,7 +46,7 @@ func WebsocketHandler(c *gin.Context) {
 			err = conn.WriteMessage(websocket.TextMessage, []byte("invalid message"))
 		}
 		if err != nil {
-			logrus.Infof("[WebsocketHandler] write message err. err = %v", err)
+			logrus.Errorf("[WebsocketHandler] write message err. err = %v", err)
 		}
 	}
 }
