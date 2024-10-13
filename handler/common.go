@@ -7,6 +7,7 @@ type Response struct {
 }
 
 const (
+	StatusCode_Success       = 1000
 	StateCode_Internal_ERROR = 1001
 	StateCode_Param_ERROR    = 1002
 )

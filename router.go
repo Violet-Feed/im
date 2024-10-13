@@ -40,6 +40,7 @@ func Router(r *gin.Engine) *gin.Engine {
 	r.GET("/test", handler.TestWs)
 	kv := r.Group("/kv")
 	{
+		kv.GET("/cas", handler.Cas)
 		kv.GET("/set", handler.Set)
 		kv.GET("/get", handler.Get)
 	}

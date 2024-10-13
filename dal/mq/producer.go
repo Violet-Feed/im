@@ -2,10 +2,10 @@ package mq
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/apache/rocketmq-client-go/v2"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/apache/rocketmq-client-go/v2/producer"
-	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"im/proto_gen/im"
 	"strconv"
@@ -25,13 +25,15 @@ func init() {
 	}
 }
 
-func SendMq(ctx context.Context, message *im.MessageEvent) error {
-	body, _ := proto.Marshal(message)
-	resp, err := p.SendSync(ctx, primitive.NewMessage("conversation", body).WithShardingKey(strconv.FormatInt(message.GetConvShortId(), 10)))
+func SendMq(ctx context.Context, topic string, tag string, message *im.MessageEvent) error {
+	body, _ := json.Marshal(message)
+	_, err := p.SendSync(ctx, primitive.NewMessage(topic, body).
+		WithShardingKey(strconv.FormatInt(message.GetConvShortId(), 10)).
+		WithTag(tag))
 	if err != nil {
 		logrus.Errorf("[SendMq] mq send message err, err = %v", err)
 		return err
 	}
-	logrus.Infof("[SendMq] mq send message success, resp = %v", resp)
+	//logrus.Infof("[SendMq] mq send message success, resp = %v", resp)
 	return nil
 }

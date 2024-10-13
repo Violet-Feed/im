@@ -20,27 +20,68 @@ enum MessageType{
   Message_Type_Cmd=1000;
 }
 
-message MessageEvent{
-  optional string ConvId = 1;
-  optional int64 ConvShortId = 2;
-  optional ConversationType ConvType = 3;
-  optional int64 MsgId=4;
-  optional MessageType MsgType = 5;
-  optional string MsgContent = 6;
-  optional int64 CreateTime=7;
+message BaseResp{
+  optional int32 StateCode=1;
+  optional string StateMessage=2;
 }
 
-message MessageSendRequest{
+message MessageEvent{
+  optional int64 UserId=1;
+  optional string ConvId = 2;
+  optional int64 ConvShortId = 3;
+  optional int32 ConvType = 4;
+  optional int64 MsgId=5;
+  optional int32 MsgType = 6;
+  optional string MsgContent = 7;
+  optional int64 CreateTime=8;
+  optional int64 ConvIndex=9;
+  optional bool Stored=10;
+  optional int32 RetryCount=11;
+}
+
+message MessageBody{
+  optional int64 UserId=1;
+  optional string ConvId = 2;
+  optional int64 ConvShortId = 3;
+  optional int32 ConvType = 4;
+  optional int64 MsgId=5;
+  optional int32 MsgType = 6;
+  optional string MsgContent = 7;
+  optional int64 CreateTime=8;
+}
+
+message SendMessageRequest{
   optional string ConvId = 1;
   optional int64 ConvShortId = 2;
-  optional ConversationType ConvType = 3;
-  optional MessageType MsgType = 4;
+  optional int32 ConvType = 3;
+  optional int32 MsgType = 4;
   optional string MsgContent = 5;
+}
+
+message SendMessageResponse{
+  optional BaseResp baseResp = 1;
+}
+
+message GetMessagesRequest{
+  optional int64 ConvShortId=1;
+  repeated int64 MsgIds=2;
+}
+
+message GetMessagesResponse{
+  repeated MessageBody MsgBodies=1;
+}
+
+message SaveMessageRequest{
+  optional MessageBody MsgBody=1;
+}
+
+message SaveMessageResponse{
+  optional BaseResp baseResp = 1;
 }
 
 message CreateConversationRequest{
   optional string ConvId=1;
-  optional ConversationType ConvType=2;
+  optional int32 ConvType=2;
   optional int64 OwnerId=3;
 }
 
