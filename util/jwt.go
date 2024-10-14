@@ -8,7 +8,7 @@ import (
 )
 
 const JWT_KEY = "SDFGjhdsfalshdfHFdsjkdsfds126232131afasdfac"
-const JWT_TTL = time.Second * 60 * 60 * 24 * 14
+const JWT_TTL = time.Hour * 24 * 14
 
 func GenerateUserToken(userId int64) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{

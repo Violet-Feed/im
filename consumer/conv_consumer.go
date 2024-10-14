@@ -26,17 +26,42 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		}
 		_, err := message.StoreMessage(ctx, saveMessageRequest)
 		if err != nil {
-			logrus.Errorf("[ConvProcess] store message err. err = %v", err)
+			logrus.Errorf("[ConvProcess] StoreMessage err. err = %v", err)
+			retryCount := messageEvent.GetRetryCount()
+			if retryCount > 3 {
+				logrus.Errorf("[ConvProcess] retry too much. message = %v", messageEvent)
+				return consumer.ConsumeSuccess, nil
+			}
+			messageEvent.RetryCount = util.Int32(retryCount + 1)
 			err = mq.SendMq(ctx, "conversation", "", messageEvent)
 			if err != nil {
 			}
 			return consumer.ConsumeSuccess, nil
 		}
 		messageEvent.Stored = util.Bool(true)
-		logrus.Infof("[ConvProcess] save message sucess")
+		logrus.Infof("[ConvProcess] StoreMessage sucess")
 	}
 	if messageEvent.GetConvIndex() == 0 {
-		index.AppendConversation()
+		appendConversationIndexRequest := &im.AppendConversationIndexRequest{
+			ConvShortId: messageEvent.ConvShortId,
+			MsgId:       messageEvent.MsgId,
+		}
+		appendConversationIndexResponse, err := index.AppendConversationIndex(ctx, appendConversationIndexRequest)
+		if err != nil {
+			logrus.Errorf("[ConvProcess] AppendConversationIndex err. err = %v", err)
+			retryCount := messageEvent.GetRetryCount()
+			if retryCount > 3 {
+				logrus.Errorf("[ConvProcess] retry too much. message = %v", messageEvent)
+				return consumer.ConsumeSuccess, nil
+			}
+			messageEvent.RetryCount = util.Int32(retryCount + 1)
+			err = mq.SendMq(ctx, "conversation", "", messageEvent)
+			if err != nil {
+			}
+			return consumer.ConsumeSuccess, nil
+		}
+		messageEvent.ConvIndex = appendConversationIndexResponse.ConvIndex
+		logrus.Infof("[ConvProcess] AppendConversationIndex sucess. index = %v", messageEvent.GetConvIndex())
 	}
 	receivers := getReceivers(ctx, messageEvent)
 	for _, receiver := range receivers {

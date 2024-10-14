@@ -20,7 +20,7 @@ func GetMessages(ctx context.Context, req *im.GetMessagesRequest) (resp *im.GetM
 	messages, err := dal.KvrocksServer.MGet(ctx, keys)
 	if err != nil {
 		logrus.Errorf("[GetMessages] kvrocks mget err. err = %v", err)
-		return
+		return nil, err
 	}
 	var messageBodies []*im.MessageBody
 	for _, message := range messages {
@@ -33,5 +33,5 @@ func GetMessages(ctx context.Context, req *im.GetMessagesRequest) (resp *im.GetM
 		}
 	}
 	resp.MsgBodies = messageBodies
-	return
+	return resp, nil
 }

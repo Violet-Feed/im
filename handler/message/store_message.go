@@ -9,20 +9,20 @@ import (
 	"im/proto_gen/im"
 )
 
-func StoreMessage(ctx context.Context, req *im.SaveMessageRequest) (resp im.SaveMessageResponse, err error) {
-	resp = im.SaveMessageResponse{}
+func StoreMessage(ctx context.Context, req *im.SaveMessageRequest) (resp *im.SaveMessageResponse, err error) {
+	resp = &im.SaveMessageResponse{}
 	convShortId := req.GetMsgBody().GetConvShortId()
 	messageId := req.GetMsgBody().GetMsgId()
-	key := fmt.Sprintf("%d:%d", convShortId, messageId)
+	key := fmt.Sprintf("msg:%d:%d", convShortId, messageId)
 	messageBody, err := json.Marshal(req.GetMsgBody())
 	if err != nil {
 		logrus.Errorf("[StoreMessage] marshal messageBody err. err = %v", err)
-		return
+		return nil, err
 	}
 	err = dal.KvrocksServer.Set(ctx, key, string(messageBody))
 	if err != nil {
 		logrus.Errorf("[StoreMessage] kvrocks set err. err = %v", err)
-		return
+		return nil, err
 	}
-	return
+	return resp, nil
 }

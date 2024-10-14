@@ -10,6 +10,7 @@ import (
 func Set(c *gin.Context) {
 	value := c.Query("val")
 	err := dal.KvrocksServer.Set(c, "a", value)
+	err = dal.RedisServer.Set(c, "a", value, 0)
 	if err != nil {
 		c.String(http.StatusOK, err.Error())
 	} else {

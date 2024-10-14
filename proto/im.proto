@@ -24,7 +24,7 @@ message BaseResp{
   optional int32 StateCode=1;
   optional string StateMessage=2;
 }
-
+//TODO:message proto
 message MessageEvent{
   optional int64 UserId=1;
   optional string ConvId = 2;
@@ -78,7 +78,7 @@ message SaveMessageRequest{
 message SaveMessageResponse{
   optional BaseResp baseResp = 1;
 }
-
+//TODO:conversation proto
 message CreateConversationRequest{
   optional string ConvId=1;
   optional int32 ConvType=2;
@@ -88,4 +88,13 @@ message CreateConversationRequest{
 message CreateConversationResponse{
   optional int64 ConvShortId=1;
   optional string ConvInfo=2;
+}
+//TODO:index proto
+message AppendConversationIndexRequest{
+  optional int64 ConvShortId=1;
+  optional int64 MsgId=2;
+}
+
+message AppendConversationIndexResponse{
+  optional int64 ConvIndex=1;
 }
