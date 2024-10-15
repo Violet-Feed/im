@@ -15,6 +15,8 @@ type KvrocksService interface {
 	SetNX(ctx context.Context, key string, value string) (bool, error)
 	Cas(ctx context.Context, key string, oldValue string, newValue string) (int64, error)
 	RPush(ctx context.Context, key string, values []string) (int64, error)
+	LRange(ctx context.Context, key string, start, stop int64) ([]string, error)
+	LLen(ctx context.Context, key string) (int64, error)
 	SetExpire(ctx context.Context, key string, expiration time.Duration) error
 }
 
@@ -90,6 +92,24 @@ func (k KvrocksServiceImpl) RPush(ctx context.Context, key string, values []stri
 	res, err := k.client.RPush(ctx, key, values).Result()
 	if err != nil {
 		logrus.Errorf("kvrocks rpush err. err = %v", err)
+		return 0, err
+	}
+	return res, nil
+}
+
+func (k KvrocksServiceImpl) LRange(ctx context.Context, key string, start, stop int64) ([]string, error) {
+	res, err := k.client.LRange(ctx, key, start, stop).Result()
+	if err != nil {
+		logrus.Errorf("kvrocks lrange err. err = %v", err)
+		return nil, err
+	}
+	return res, nil
+}
+
+func (k KvrocksServiceImpl) LLen(ctx context.Context, key string) (int64, error) {
+	res, err := k.client.LLen(ctx, key).Result()
+	if err != nil {
+		logrus.Errorf("kvrocks llen err. err = %v", err)
 		return 0, err
 	}
 	return res, nil

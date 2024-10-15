@@ -98,3 +98,13 @@ message AppendConversationIndexRequest{
 message AppendConversationIndexResponse{
   optional int64 ConvIndex=1;
 }
+
+message PullConversationIndexRequest{
+  optional int64 ConvShortId=1;
+  optional int64 ConvIndex=2;
+  optional int64 Limit=3;
+}
+
+message PullConversationIndexResponse{
+  repeated int64 MsgIds=1;
+}
