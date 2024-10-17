@@ -36,7 +36,10 @@ message MessageEvent{
   optional int64 CreateTime=8;
   optional int64 ConvIndex=9;
   optional bool Stored=10;
-  optional int32 RetryCount=11;
+  optional int64 userConvIndex=11;
+  optional int64 preUserConvIndex=12;
+  optional int64 userCmdIndex=13;
+  optional int32 RetryCount=14;
 }
 
 message MessageBody{
@@ -107,4 +110,23 @@ message PullConversationIndexRequest{
 
 message PullConversationIndexResponse{
   repeated int64 MsgIds=1;
+}
+
+message AppendUserConvIndexRequest{
+  optional int64 UserId=1;
+  optional int64 ConvShortId=2;
+}
+
+message AppendUserConvIndexResponse{
+  optional int64 UserConvIndex=1;
+  optional int64 PreUserConvIndex=2;
+}
+
+message AppendUserCmdIndexRequest{
+  optional int64 UserId=1;
+  optional int64 MsgId=2;
+}
+
+message AppendUserCmdIndexResponse{
+  optional int64 UserCmdIndex=1;
 }

@@ -19,7 +19,7 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	var messageEvent *im.MessageEvent
 	_ = json.Unmarshal(msgs[0].Body, &messageEvent)
 	logrus.Infof("[ConvProcess] rocketmq receive message success. message = %v", messageEvent)
-	if !messageEvent.GetStored() {
+	if !messageEvent.GetStored() && messageEvent.GetMsgType() < 1000 {
 		messageBody := getBodyFromEvent(ctx, messageEvent)
 		saveMessageRequest := &im.SaveMessageRequest{
 			MsgBody: messageBody,
@@ -30,18 +30,18 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			retryCount := messageEvent.GetRetryCount()
 			if retryCount > 3 {
 				logrus.Errorf("[ConvProcess] retry too much. message = %v", messageEvent)
-				return consumer.ConsumeSuccess, nil
 			}
 			messageEvent.RetryCount = util.Int32(retryCount + 1)
 			err = mq.SendMq(ctx, "conversation", "", messageEvent)
 			if err != nil {
+				//TODO:无限重试
 			}
 			return consumer.ConsumeSuccess, nil
 		}
 		messageEvent.Stored = util.Bool(true)
 		logrus.Infof("[ConvProcess] StoreMessage sucess")
 	}
-	if messageEvent.GetConvIndex() == 0 {
+	if messageEvent.GetConvIndex() == 0 && messageEvent.GetMsgType() < 1000 {
 		appendConversationIndexRequest := &im.AppendConversationIndexRequest{
 			ConvShortId: messageEvent.ConvShortId,
 			MsgId:       messageEvent.MsgId,
