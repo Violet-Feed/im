@@ -45,7 +45,7 @@ func Send(c *gin.Context) {
 	}
 	createTime := time.Now().UnixMilli()
 	//TODO：消息频率控制
-	messageEvent := &im.MessageEvent{
+	messageBody := &im.MessageBody{
 		UserId:      util.Int64(userId),
 		ConvId:      sendMessageRequest.ConvId,
 		ConvShortId: sendMessageRequest.ConvShortId,
@@ -54,6 +54,9 @@ func Send(c *gin.Context) {
 		MsgType:     sendMessageRequest.MsgType,
 		MsgContent:  sendMessageRequest.MsgContent,
 		CreateTime:  util.Int64(createTime),
+	}
+	messageEvent := &im.MessageEvent{
+		MsgBody: messageBody,
 	}
 	err = mq.SendMq(c, "conversation", "", messageEvent)
 	if err != nil {

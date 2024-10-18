@@ -1,21 +1,21 @@
 package dal
 
 import (
-	"im/dal/demo"
 	"im/dal/kvrocks"
 	"im/dal/mysql"
 	"im/dal/redis"
+	"im/dal/rpc"
 )
 
 var (
-	DemoServer    demo.DemoServiceImpl
+	DemoServer    rpc.DemoServiceImpl
 	RedisServer   redis.RedisServiceImpl
 	KvrocksServer kvrocks.KvrocksServiceImpl
 	MysqlServer   mysql.MysqlServiceImpl
 )
 
 func InitService() {
-	DemoServer = demo.NewDemoServiceImpl()
+	DemoServer = rpc.NewDemoServiceImpl()
 	RedisServer = redis.NewRedisServiceImpl()
 	KvrocksServer = kvrocks.NewKvrocksServiceImpl()
 	MysqlServer = mysql.NewMysqlServiceImpl()

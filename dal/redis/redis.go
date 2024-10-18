@@ -11,6 +11,7 @@ type RedisService interface {
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error
 	Get(ctx context.Context, key string) (string, error)
 	Del(ctx context.Context, key string) error
+	HGetAll(ctx context.Context, key string) (map[string]string, error)
 }
 
 type RedisServiceImpl struct {
@@ -51,4 +52,13 @@ func (r *RedisServiceImpl) Del(ctx context.Context, key string) error {
 		return err
 	}
 	return nil
+}
+
+func (r *RedisServiceImpl) HGetAll(ctx context.Context, key string) (map[string]string, error) {
+	res, err := r.client.HGetAll(ctx, key).Result()
+	if err != nil {
+		logrus.Errorf("[HGetAll] redis hgetall err. err = %v", err)
+		return nil, err
+	}
+	return res, nil
 }

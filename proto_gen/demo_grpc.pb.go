@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v5.27.1
-// source: proto/demo.proto
+// source: proto/rpc.proto
 
 package proto_gen
 
@@ -117,5 +117,5 @@ var Demo_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/demo.proto",
+	Metadata: "proto/rpc.proto",
 }

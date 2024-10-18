@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.31.0
 // 	protoc        v5.27.1
-// source: proto/demo.proto
+// source: proto/rpc.proto
 
 package proto_gen
 

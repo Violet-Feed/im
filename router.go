@@ -35,15 +35,9 @@ func authMiddleware() gin.HandlerFunc {
 
 func Router(r *gin.Engine) *gin.Engine {
 	r.Use(authMiddleware())
-	r.GET("/demo", handler.GetMessage)
+	r.GET("/rpc", handler.GetMessage)
 	r.GET("/ws/:id", handler.WebsocketHandler)
-	r.GET("/test", handler.TestWs)
-	kv := r.Group("/kv")
-	{
-		kv.GET("/cas", handler.Cas)
-		kv.GET("/set", handler.Set)
-		kv.GET("/get", handler.Get)
-	}
+	r.GET("/ws/test", handler.TestWs)
 
 	message := r.Group("/message")
 	{

@@ -19,10 +19,9 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	var messageEvent *im.MessageEvent
 	_ = json.Unmarshal(msgs[0].Body, &messageEvent)
 	logrus.Infof("[ConvProcess] rocketmq receive message success. message = %v", messageEvent)
-	if !messageEvent.GetStored() && messageEvent.GetMsgType() < 1000 {
-		messageBody := getBodyFromEvent(ctx, messageEvent)
+	if !messageEvent.GetStored() && messageEvent.GetMsgBody().GetMsgType() < 1000 {
 		saveMessageRequest := &im.SaveMessageRequest{
-			MsgBody: messageBody,
+			MsgBody: messageEvent.GetMsgBody(),
 		}
 		_, err := message.StoreMessage(ctx, saveMessageRequest)
 		if err != nil {
@@ -41,10 +40,10 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		messageEvent.Stored = util.Bool(true)
 		logrus.Infof("[ConvProcess] StoreMessage sucess")
 	}
-	if messageEvent.GetConvIndex() == 0 && messageEvent.GetMsgType() < 1000 {
+	if messageEvent.GetConvIndex() == 0 && messageEvent.GetMsgBody().GetMsgType() < 1000 {
 		appendConversationIndexRequest := &im.AppendConversationIndexRequest{
-			ConvShortId: messageEvent.ConvShortId,
-			MsgId:       messageEvent.MsgId,
+			ConvShortId: messageEvent.GetMsgBody().ConvShortId,
+			MsgId:       messageEvent.GetMsgBody().MsgId,
 		}
 		appendConversationIndexResponse, err := index.AppendConversationIndex(ctx, appendConversationIndexRequest)
 		if err != nil {
@@ -74,24 +73,10 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	//->写会话链(inbox_api,V2)->保存消息->(增加thread未读)->写入用户消息队列->与同步MQ互补->失败发送backup队列
 }
 
-func getBodyFromEvent(ctx context.Context, event *im.MessageEvent) *im.MessageBody {
-	messageBody := &im.MessageBody{
-		UserId:      event.UserId,
-		ConvId:      event.ConvId,
-		ConvShortId: event.ConvShortId,
-		ConvType:    event.ConvType,
-		MsgId:       event.MsgId,
-		MsgType:     event.MsgType,
-		MsgContent:  event.MsgContent,
-		CreateTime:  event.CreateTime,
-	}
-	return messageBody
-}
-
 func getReceivers(ctx context.Context, event *im.MessageEvent) []int64 {
-	switch event.GetConvType() {
+	switch event.GetMsgBody().GetConvType() {
 	case int32(im.ConversationType_ConversationType_One_Chat):
-		parts := strings.Split(event.GetConvId(), ":")
+		parts := strings.Split(event.GetMsgBody().GetConvId(), ":")
 		minId, _ := strconv.ParseInt(parts[0], 10, 64)
 		maxId, _ := strconv.ParseInt(parts[1], 10, 64)
 		return []int64{minId, maxId}

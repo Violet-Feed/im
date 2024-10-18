@@ -25,23 +25,6 @@ message BaseResp{
   optional string StateMessage=2;
 }
 //TODO:message proto
-message MessageEvent{
-  optional int64 UserId=1;
-  optional string ConvId = 2;
-  optional int64 ConvShortId = 3;
-  optional int32 ConvType = 4;
-  optional int64 MsgId=5;
-  optional int32 MsgType = 6;
-  optional string MsgContent = 7;
-  optional int64 CreateTime=8;
-  optional int64 ConvIndex=9;
-  optional bool Stored=10;
-  optional int64 userConvIndex=11;
-  optional int64 preUserConvIndex=12;
-  optional int64 userCmdIndex=13;
-  optional int32 RetryCount=14;
-}
-
 message MessageBody{
   optional int64 UserId=1;
   optional string ConvId = 2;
@@ -51,6 +34,17 @@ message MessageBody{
   optional int32 MsgType = 6;
   optional string MsgContent = 7;
   optional int64 CreateTime=8;
+}
+
+message MessageEvent{
+  optional MessageBody msgBody=1;
+  optional int64 ConvIndex=2;
+  optional bool Stored=3;
+  optional int64 UserConvIndex=4;
+  optional int64 PreUserConvIndex=5;
+  optional int64 BadgeCount=6;
+  optional int64 UserCmdIndex=7;
+  optional int32 RetryCount=8;
 }
 
 message SendMessageRequest{
@@ -92,6 +86,15 @@ message CreateConversationResponse{
   optional int64 ConvShortId=1;
   optional string ConvInfo=2;
 }
+
+message IncrConversationBadgeRequest{
+  optional int64 UserId=1;
+  optional int64 ConvShortId=2;
+}
+
+message IncrConversationBadgeResponse{
+  optional int64 BadgeCount=1;
+}
 //TODO:index proto
 message AppendConversationIndexRequest{
   optional int64 ConvShortId=1;
@@ -129,4 +132,17 @@ message AppendUserCmdIndexRequest{
 
 message AppendUserCmdIndexResponse{
   optional int64 UserCmdIndex=1;
+}
+//TODO:push
+message PushRequest{
+  optional MessageBody MsgBody=1;
+  optional int64 ConvIndex=2;
+  optional int64 UserConvIndex=3;
+  optional int64 PreUserConvIndex=4;
+  optional int64 BadgeCount=5;
+  optional int64 UserCmdIndex=6;
+}
+
+message PushResponse{
+  optional BaseResp baseResp=1;
 }
