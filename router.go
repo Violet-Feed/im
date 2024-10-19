@@ -37,11 +37,31 @@ func authMiddleware() gin.HandlerFunc {
 func Router(r *gin.Engine) *gin.Engine {
 	r.Use(authMiddleware())
 	r.GET("/rpc", handler.GetMessage)
-	r.GET("/ws/create", handler.WebsocketHandler)
+	r.GET("/ws", handler.WebsocketHandler)
 
 	message := r.Group("/message")
 	{
 		message.POST("/send", handler.Send)
+		message.POST("/modify")
+		message.POST("/recall")
+		message.POST("/delete")
+		message.POST("/forward")
+		message.POST("/pin")
+		message.POST("/mark_read")
+		message.POST("/get_by_init")
+		message.POST("/get_by_conv")
+	}
+	conversation := r.Group("/conversation")
+	{
+		conversation.POST("/create")
+		conversation.POST("/delete")
+		conversation.POST("/pin")
+		conversation.POST("/get_info")
+		conversation.POST("/modify_info")
+		conversation.POST("/disband")
+		conversation.POST("/join")
+		conversation.POST("/exit")
+		conversation.POST("/share")
 	}
 	return r
 }

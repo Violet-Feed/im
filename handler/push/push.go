@@ -30,7 +30,7 @@ func Push(ctx context.Context, req *im.PushRequest) (resp *im.PushResponse, err 
 		if conn, ok := connInter.(*websocket.Conn); ok {
 			err := conn.WriteMessage(websocket.TextMessage, message)
 			if err != nil {
-				logrus.Errorf("[Push] WriteMessage err. err = %v", err)
+				logrus.Warnf("[Push] WriteMessage err. err = %v", err)
 			}
 		}
 	}

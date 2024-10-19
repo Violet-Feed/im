@@ -45,6 +45,7 @@ func WebsocketHandler(c *gin.Context) {
 	userId := userIdStr.(int64)
 	key := fmt.Sprintf("conn:%d", userId)
 	connInfo, _ := json.Marshal(ConnInfo{UserId: userId})
+	//TODO:定期注册，4小时过期
 	err = dal.RedisServer.HSet(c, key, connId, connInfo)
 	if err != nil {
 		logrus.Errorf("[WebsocketHandler] redis hset err. err = %v", err)
@@ -58,11 +59,11 @@ func WebsocketHandler(c *gin.Context) {
 		}
 	}()
 	defer logrus.Warnf("[WebsocketHandler] defer %v", connId)
-
 	for {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
-			logrus.Errorf("[WebsocketHandler] read message err. err = %v", err)
+			logrus.Warnf("[WebsocketHandler] read message err. err = %v", err)
+			return
 		}
 		logrus.Infof("[WebsocketHandler] receive message. messageType = %v, message = %v", messageType, message)
 
@@ -73,7 +74,8 @@ func WebsocketHandler(c *gin.Context) {
 			err = conn.WriteMessage(websocket.TextMessage, []byte("invalid message"))
 		}
 		if err != nil {
-			logrus.Errorf("[WebsocketHandler] write message err. err = %v", err)
+			logrus.Warnf("[WebsocketHandler] write message err. err = %v", err)
+			return
 		}
 	}
 }
