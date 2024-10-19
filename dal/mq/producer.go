@@ -28,7 +28,7 @@ func init() {
 func SendMq(ctx context.Context, topic string, tag string, message *im.MessageEvent) error {
 	body, _ := json.Marshal(message)
 	_, err := p.SendSync(ctx, primitive.NewMessage(topic, body).
-		WithShardingKey(strconv.FormatInt(message.GetConvShortId(), 10)).
+		WithShardingKey(strconv.FormatInt(message.GetMsgBody().GetConvShortId(), 10)).
 		WithTag(tag))
 	if err != nil {
 		logrus.Errorf("[SendMq] mq send message err, err = %v", err)

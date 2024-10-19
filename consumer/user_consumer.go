@@ -89,6 +89,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	//TODO:重试10
 	pushRequest := &im.PushRequest{
 		MsgBody:          messageEvent.GetMsgBody(),
+		ReceiverId:       util.Int64(userId),
 		ConvIndex:        messageEvent.ConvIndex,
 		UserConvIndex:    messageEvent.UserConvIndex,
 		PreUserConvIndex: messageEvent.PreUserConvIndex,

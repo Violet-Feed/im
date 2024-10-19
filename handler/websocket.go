@@ -1,15 +1,24 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
+	"im/dal"
+	"im/util"
 	"net/http"
 	"sync"
 )
 
-var connects sync.Map
+var Connections sync.Map
+
+type ConnInfo struct {
+	UserId   int64  `json:"user_id"`
+	DeviceId int64  `json:"device_id"`
+	Platform string `json:"platform"`
+}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -23,20 +32,37 @@ func WebsocketHandler(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		logrus.Errorf("[WebsocketHandler] upgrade websocket err. err = %v", err)
-		resp := Response{Code: 201, Message: "connect err", Data: nil}
-		c.JSON(http.StatusOK, resp)
+		c.JSON(http.StatusOK, StateCode_Internal_ERROR)
 		return
 	}
-
 	defer conn.Close()
 
-	userId := c.Param("id")
-	connects.Store(userId, conn)
+	connId := util.ConnIdGenerator.Generate().String()
+	Connections.Store(connId, conn)
+	defer Connections.Delete(connId)
+
+	userIdStr, _ := c.Get("userId")
+	userId := userIdStr.(int64)
+	key := fmt.Sprintf("conn:%d", userId)
+	connInfo, _ := json.Marshal(ConnInfo{UserId: userId})
+	err = dal.RedisServer.HSet(c, key, connId, connInfo)
+	if err != nil {
+		logrus.Errorf("[WebsocketHandler] redis hset err. err = %v", err)
+		c.JSON(http.StatusOK, StateCode_Internal_ERROR)
+		return
+	}
+	defer func() {
+		err = dal.RedisServer.HDel(c, key, connId)
+		if err != nil {
+			logrus.Errorf("[WebsocketHandler] redis hdel err. err = %v", err)
+		}
+	}()
+	defer logrus.Warnf("[WebsocketHandler] defer %v", connId)
+
 	for {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
 			logrus.Errorf("[WebsocketHandler] read message err. err = %v", err)
-			continue
 		}
 		logrus.Infof("[WebsocketHandler] receive message. messageType = %v, message = %v", messageType, message)
 
@@ -49,21 +75,5 @@ func WebsocketHandler(c *gin.Context) {
 		if err != nil {
 			logrus.Errorf("[WebsocketHandler] write message err. err = %v", err)
 		}
-	}
-}
-
-func TestWs(c *gin.Context) {
-	userId := c.Query("id")
-	message := c.Query("message")
-	connInter, isExist := connects.Load(userId)
-	fmt.Println(connInter, isExist)
-	if conn, ok := connInter.(*websocket.Conn); ok && isExist {
-		if err := conn.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
-			c.String(http.StatusOK, "err")
-		} else {
-			c.String(http.StatusOK, "ok")
-		}
-	} else {
-		c.String(http.StatusOK, "not exist")
 	}
 }

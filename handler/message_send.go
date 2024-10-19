@@ -22,8 +22,8 @@ func Send(c *gin.Context) {
 		c.JSON(http.StatusOK, StateCode_Param_ERROR)
 		return
 	}
-	id, _ := c.Get("userId")
-	userId := id.(int64)
+	userIdStr, _ := c.Get("userId")
+	userId := userIdStr.(int64)
 
 	//TODO：鉴权
 	messageId := util.MsgIdGenerator.Generate().Int64()

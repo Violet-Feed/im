@@ -136,11 +136,12 @@ message AppendUserCmdIndexResponse{
 //TODO:push
 message PushRequest{
   optional MessageBody MsgBody=1;
-  optional int64 ConvIndex=2;
-  optional int64 UserConvIndex=3;
-  optional int64 PreUserConvIndex=4;
-  optional int64 BadgeCount=5;
-  optional int64 UserCmdIndex=6;
+  optional int64 ReceiverId=2;
+  optional int64 ConvIndex=3;
+  optional int64 UserConvIndex=4;
+  optional int64 PreUserConvIndex=5;
+  optional int64 BadgeCount=6;
+  optional int64 UserCmdIndex=7;
 }
 
 message PushResponse{

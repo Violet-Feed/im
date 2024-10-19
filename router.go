@@ -10,7 +10,8 @@ import (
 
 func authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.FullPath() == "/login" {
+		if c.FullPath() == "/ws/create" {
+			c.Set("userId", int64(1844310578969968640))
 			c.Next()
 		}
 		token := c.GetHeader("Authorization")
@@ -36,8 +37,7 @@ func authMiddleware() gin.HandlerFunc {
 func Router(r *gin.Engine) *gin.Engine {
 	r.Use(authMiddleware())
 	r.GET("/rpc", handler.GetMessage)
-	r.GET("/ws/:id", handler.WebsocketHandler)
-	r.GET("/ws/test", handler.TestWs)
+	r.GET("/ws/create", handler.WebsocketHandler)
 
 	message := r.Group("/message")
 	{

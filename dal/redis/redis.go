@@ -11,7 +11,9 @@ type RedisService interface {
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error
 	Get(ctx context.Context, key string) (string, error)
 	Del(ctx context.Context, key string) error
+	HSet(ctx context.Context, key string, field string, value interface{}) error
 	HGetAll(ctx context.Context, key string) (map[string]string, error)
+	HDel(ctx context.Context, key string, field string) error
 }
 
 type RedisServiceImpl struct {
@@ -54,6 +56,15 @@ func (r *RedisServiceImpl) Del(ctx context.Context, key string) error {
 	return nil
 }
 
+func (r *RedisServiceImpl) HSet(ctx context.Context, key string, field string, value interface{}) error {
+	_, err := r.client.HSet(ctx, key, field, value).Result()
+	if err != nil {
+		logrus.Errorf("[HSet] redis hset err. err = %v", err)
+		return err
+	}
+	return nil
+}
+
 func (r *RedisServiceImpl) HGetAll(ctx context.Context, key string) (map[string]string, error) {
 	res, err := r.client.HGetAll(ctx, key).Result()
 	if err != nil {
@@ -61,4 +72,13 @@ func (r *RedisServiceImpl) HGetAll(ctx context.Context, key string) (map[string]
 		return nil, err
 	}
 	return res, nil
+}
+
+func (r *RedisServiceImpl) HDel(ctx context.Context, key string, field string) error {
+	_, err := r.client.HDel(ctx, key, field).Result()
+	if err != nil {
+		logrus.Errorf("[HDel] redis hdel err. err = %v", err)
+		return err
+	}
+	return nil
 }

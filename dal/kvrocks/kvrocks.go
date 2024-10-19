@@ -87,7 +87,6 @@ func (k *KvrocksServiceImpl) Cas(ctx context.Context, key string, oldValue strin
 		logrus.Errorf("kvrocks cas err. err = %v", err)
 		return res.(int64), err
 	}
-	logrus.Infof("kvrocks cas result = %v", res)
 	return res.(int64), nil
 }
 
