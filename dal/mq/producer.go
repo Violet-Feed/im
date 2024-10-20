@@ -8,7 +8,6 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/producer"
 	"github.com/sirupsen/logrus"
 	"im/proto_gen/im"
-	"strconv"
 )
 
 var p rocketmq.Producer
@@ -25,11 +24,10 @@ func init() {
 	}
 }
 
-func SendMq(ctx context.Context, topic string, tag string, message *im.MessageEvent) error {
+func SendToMq(ctx context.Context, topic string, key string, message *im.MessageEvent) error {
 	body, _ := json.Marshal(message)
 	_, err := p.SendSync(ctx, primitive.NewMessage(topic, body).
-		WithShardingKey(strconv.FormatInt(message.GetMsgBody().GetConvShortId(), 10)).
-		WithTag(tag))
+		WithShardingKey(key))
 	if err != nil {
 		logrus.Errorf("[SendMq] mq send message err, err = %v", err)
 		return err

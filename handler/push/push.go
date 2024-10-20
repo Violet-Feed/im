@@ -25,6 +25,7 @@ func Push(ctx context.Context, req *im.PushRequest) (resp *im.PushResponse, err 
 		logrus.Infof("[Push] get connections. connId = %v, connInfo = %v", connId, connInfo)
 		connInter, _ := handler.Connections.Load(connId)
 		if connInter == nil {
+			go dal.RedisServer.HDel(ctx, key, connId)
 			continue
 		}
 		if conn, ok := connInter.(*websocket.Conn); ok {

@@ -12,13 +12,14 @@ import (
 	"im/handler/push"
 	"im/proto_gen/im"
 	"im/util"
+	"im/util/backoff"
 	"strconv"
 )
 
 func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
 	var messageEvent *im.MessageEvent
 	_ = json.Unmarshal(msgs[0].Body, &messageEvent)
-	userId, _ := strconv.ParseInt(msgs[0].GetTags(), 10, 64)
+	userId, _ := strconv.ParseInt(msgs[0].GetShardingKey(), 10, 64)
 	logrus.Infof("[UserProcess] rocketmq receive message success. message = %v, tag = %v", messageEvent, userId)
 	//TODO:判断是否为高频用户(本地+redis,写入高频队列batch)->处理重试消息
 	if messageEvent.GetMsgBody().GetMsgType() < 1000 {
@@ -32,13 +33,12 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 				logrus.Errorf("[UserProcess] AppendUserConvIndex err. err = %v", err)
 				retryCount := messageEvent.GetRetryCount()
 				if retryCount > 3 {
-					logrus.Errorf("[UserProcess] retry too much. message = %v", messageEvent)
+					logrus.Warnf("[UserProcess] retry too much. message = %v", messageEvent)
 				}
 				messageEvent.RetryCount = util.Int32(retryCount + 1)
-				err = mq.SendMq(ctx, "user", "", messageEvent)
-				if err != nil {
-					//TODO:无限重试
-				}
+				err = backoff.Retry(func() error {
+					return mq.SendToMq(ctx, "user", strconv.FormatInt(userId, 10), messageEvent)
+				}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), backoff.Infinite))
 				return consumer.ConsumeSuccess, nil
 			}
 			messageEvent.UserConvIndex = appendUserConvIndexResponse.UserConvIndex
@@ -54,13 +54,12 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 				logrus.Errorf("[UserProcess] IncrConversationBadge err. err = %v", err)
 				retryCount := messageEvent.GetRetryCount()
 				if retryCount > 3 {
-					logrus.Errorf("[UserProcess] retry too much. message = %v", messageEvent)
+					logrus.Warnf("[UserProcess] retry too much. message = %v", messageEvent)
 				}
 				messageEvent.RetryCount = util.Int32(retryCount + 1)
-				err = mq.SendMq(ctx, "user", "", messageEvent)
-				if err != nil {
-					//TODO:无限重试
-				}
+				err = backoff.Retry(func() error {
+					return mq.SendToMq(ctx, "user", strconv.FormatInt(userId, 10), messageEvent)
+				}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), backoff.Infinite))
 				return consumer.ConsumeSuccess, nil
 			}
 			messageEvent.BadgeCount = incrConversationBadgeResponse.BadgeCount
@@ -75,18 +74,16 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			logrus.Errorf("[UserProcess] AppendUserCmdIndex err. err = %v", err)
 			retryCount := messageEvent.GetRetryCount()
 			if retryCount > 3 {
-				logrus.Errorf("[UserProcess] retry too much. message = %v", messageEvent)
+				logrus.Warnf("[UserProcess] retry too much. message = %v", messageEvent)
 			}
 			messageEvent.RetryCount = util.Int32(retryCount + 1)
-			err = mq.SendMq(ctx, "user", "", messageEvent)
-			if err != nil {
-				//TODO:无限重试
-			}
+			err = backoff.Retry(func() error {
+				return mq.SendToMq(ctx, "user", strconv.FormatInt(userId, 10), messageEvent)
+			}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), backoff.Infinite))
 			return consumer.ConsumeSuccess, nil
 		}
 		messageEvent.UserCmdIndex = appendUserCmdIndexResponse.UserCmdIndex
 	}
-	//TODO:重试10
 	pushRequest := &im.PushRequest{
 		MsgBody:          messageEvent.GetMsgBody(),
 		ReceiverId:       util.Int64(userId),
@@ -96,9 +93,23 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		BadgeCount:       messageEvent.BadgeCount,
 		UserCmdIndex:     messageEvent.UserCmdIndex,
 	}
-	_, err := push.Push(ctx, pushRequest)
+	err := backoff.Retry(func() error {
+		_, err := push.Push(ctx, pushRequest)
+		if err != nil {
+			logrus.Errorf("[UserProcess] Push err. err = %v", err)
+		}
+		return err
+	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10))
 	if err != nil {
-		logrus.Errorf("[UserProcess] Push err. err = %v", err)
+		logrus.Errorf("[UserProcess] Push all err. err = %v", err)
+		retryCount := messageEvent.GetRetryCount()
+		if retryCount > 3 {
+			logrus.Warnf("[UserProcess] retry too much. message = %v", messageEvent)
+		}
+		messageEvent.RetryCount = util.Int32(retryCount + 1)
+		err = backoff.Retry(func() error {
+			return mq.SendToMq(ctx, "user", strconv.FormatInt(userId, 10), messageEvent)
+		}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), backoff.Infinite))
 	}
 	return consumer.ConsumeSuccess, nil
 

@@ -59,6 +59,14 @@ message SendMessageResponse{
   optional BaseResp baseResp = 1;
 }
 
+message GetMessageByInitRequest{
+  optional int64 UserConvIndex=1;
+}
+
+message GetMessageByInitResponse{
+
+}
+
 message GetMessagesRequest{
   optional int64 ConvShortId=1;
   repeated int64 MsgIds=2;

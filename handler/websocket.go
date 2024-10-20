@@ -10,6 +10,7 @@ import (
 	"im/util"
 	"net/http"
 	"sync"
+	"time"
 )
 
 var Connections sync.Map
@@ -45,7 +46,6 @@ func WebsocketHandler(c *gin.Context) {
 	userId := userIdStr.(int64)
 	key := fmt.Sprintf("conn:%d", userId)
 	connInfo, _ := json.Marshal(ConnInfo{UserId: userId})
-	//TODO:定期注册，4小时过期
 	err = dal.RedisServer.HSet(c, key, connId, connInfo)
 	if err != nil {
 		logrus.Errorf("[WebsocketHandler] redis hset err. err = %v", err)
@@ -58,7 +58,17 @@ func WebsocketHandler(c *gin.Context) {
 			logrus.Errorf("[WebsocketHandler] redis hdel err. err = %v", err)
 		}
 	}()
-	defer logrus.Warnf("[WebsocketHandler] defer %v", connId)
+	schedule := time.NewTicker(1 * time.Minute)
+	defer schedule.Stop()
+	go func() {
+		for range schedule.C {
+			exist, err := dal.RedisServer.HExists(c, key, connId)
+			if err == nil && !exist {
+				_ = dal.RedisServer.HSet(c, key, connId, connInfo)
+				_ = conn.WriteMessage(websocket.TextMessage, []byte("need init"))
+			}
+		}
+	}()
 	for {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {

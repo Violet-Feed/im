@@ -14,6 +14,8 @@ type RedisService interface {
 	HSet(ctx context.Context, key string, field string, value interface{}) error
 	HGetAll(ctx context.Context, key string) (map[string]string, error)
 	HDel(ctx context.Context, key string, field string) error
+	HExists(ctx context.Context, key string, field string) (bool, error)
+	FlushDB(ctx context.Context) error
 }
 
 type RedisServiceImpl struct {
@@ -78,6 +80,24 @@ func (r *RedisServiceImpl) HDel(ctx context.Context, key string, field string) e
 	_, err := r.client.HDel(ctx, key, field).Result()
 	if err != nil {
 		logrus.Errorf("[HDel] redis hdel err. err = %v", err)
+		return err
+	}
+	return nil
+}
+
+func (r *RedisServiceImpl) HExists(ctx context.Context, key string, field string) (bool, error) {
+	res, err := r.client.HExists(ctx, key, field).Result()
+	if err != nil {
+		logrus.Errorf("[HExists] redis hexists err. err = %v", err)
+		return false, err
+	}
+	return res, nil
+}
+
+func (r *RedisServiceImpl) FlushDB(ctx context.Context) error {
+	_, err := r.client.FlushDB(ctx).Result()
+	if err != nil {
+		logrus.Errorf("[FlushDB] redis flushdb err. err = %v", err)
 		return err
 	}
 	return nil

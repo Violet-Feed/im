@@ -11,7 +11,7 @@ import (
 	"net"
 )
 
-// TODO:重试、get、ext、本地缓存、定期任务、监控
+// TODO:get、ext、本地缓存、定期任务、监控
 func main() {
 	//ctx, cancel := context.WithCancel(context.Background())
 	//sigCh := make(chan os.Signal, 1)

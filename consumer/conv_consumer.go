@@ -11,6 +11,7 @@ import (
 	"im/handler/message"
 	"im/proto_gen/im"
 	"im/util"
+	"im/util/backoff"
 	"strconv"
 	"strings"
 )
@@ -31,10 +32,9 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 				logrus.Errorf("[ConvProcess] retry too much. message = %v", messageEvent)
 			}
 			messageEvent.RetryCount = util.Int32(retryCount + 1)
-			err = mq.SendMq(ctx, "conversation", "", messageEvent)
-			if err != nil {
-				//TODO:无限重试
-			}
+			err = backoff.Retry(func() error {
+				return mq.SendToMq(ctx, "conversation", strconv.FormatInt(messageEvent.GetMsgBody().GetConvShortId(), 10), messageEvent)
+			}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), backoff.Infinite))
 			return consumer.ConsumeSuccess, nil
 		}
 		messageEvent.Stored = util.Bool(true)
@@ -54,9 +54,9 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 				return consumer.ConsumeSuccess, nil
 			}
 			messageEvent.RetryCount = util.Int32(retryCount + 1)
-			err = mq.SendMq(ctx, "conversation", "", messageEvent)
-			if err != nil {
-			}
+			err = backoff.Retry(func() error {
+				return mq.SendToMq(ctx, "conversation", strconv.FormatInt(messageEvent.GetMsgBody().GetConvShortId(), 10), messageEvent)
+			}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), backoff.Infinite))
 			return consumer.ConsumeSuccess, nil
 		}
 		messageEvent.ConvIndex = appendConversationIndexResponse.ConvIndex
@@ -64,7 +64,7 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	}
 	receivers := getReceivers(ctx, messageEvent)
 	for _, receiver := range receivers {
-		err := mq.SendMq(ctx, "user", strconv.FormatInt(receiver, 10), messageEvent)
+		err := mq.SendToMq(ctx, "user", strconv.FormatInt(receiver, 10), messageEvent)
 		if err != nil {
 		}
 	}

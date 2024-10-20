@@ -7,6 +7,7 @@ import (
 	"im/proto_gen/im"
 	"im/util"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -58,7 +59,7 @@ func Send(c *gin.Context) {
 	messageEvent := &im.MessageEvent{
 		MsgBody: messageBody,
 	}
-	err = mq.SendMq(c, "conversation", "", messageEvent)
+	err = mq.SendToMq(c, "conversation", strconv.FormatInt(sendMessageRequest.GetConvShortId(), 10), messageEvent)
 	if err != nil {
 		c.JSON(http.StatusOK, StateCode_Internal_ERROR)
 		return

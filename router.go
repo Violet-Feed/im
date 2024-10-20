@@ -10,7 +10,7 @@ import (
 
 func authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.FullPath() == "/ws/create" {
+		if c.FullPath() == "/ws" {
 			c.Set("userId", int64(1844310578969968640))
 			c.Next()
 		}
@@ -48,8 +48,8 @@ func Router(r *gin.Engine) *gin.Engine {
 		message.POST("/forward")
 		message.POST("/pin")
 		message.POST("/mark_read")
-		message.POST("/get_by_init")
-		message.POST("/get_by_conv")
+		message.POST("/get_by_init", handler.GetByInit)
+		message.POST("/get_by_conv", handler.GetByConv)
 	}
 	conversation := r.Group("/conversation")
 	{
