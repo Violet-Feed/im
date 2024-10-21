@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	Segment_Limit = 100
-	Segment_TTL   = time.Hour * 24 * 180
+	SegmentLimit = 100
+	SegmentTTL   = time.Hour * 24 * 180
 )
 
 func AppendConversationIndex(ctx context.Context, req *im.AppendConversationIndexRequest) (resp *im.AppendConversationIndexResponse, err error) {
@@ -51,7 +51,7 @@ func AppendConversationIndex(ctx context.Context, req *im.AppendConversationInde
 			return nil, err
 		}
 		segment, _ := strconv.ParseInt(seg, 10, 64)
-		if subIndex > Segment_Limit {
+		if subIndex > SegmentLimit {
 			newSeg := strconv.FormatInt(segment+1, 10)
 			opt, err := dal.KvrocksServer.Cas(ctx, segKey, seg, newSeg)
 			if err != nil {
@@ -59,13 +59,13 @@ func AppendConversationIndex(ctx context.Context, req *im.AppendConversationInde
 				return nil, err
 			}
 			if opt == 1 {
-				err = dal.KvrocksServer.Expire(ctx, indexKey, Segment_TTL)
+				err = dal.KvrocksServer.Expire(ctx, indexKey, SegmentTTL)
 				if err != nil {
 					logrus.Errorf("[AppendConversationIndex] kvrocks Expire err. err = %v", err)
 				}
 			}
 		} else {
-			resp.ConvIndex = util.Int64(segment*Segment_Limit + subIndex)
+			resp.ConvIndex = util.Int64(segment*SegmentLimit + subIndex)
 			return resp, nil
 		}
 	}

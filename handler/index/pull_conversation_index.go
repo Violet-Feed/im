@@ -31,13 +31,13 @@ func PullConversationIndex(ctx context.Context, req *im.PullConversationIndexReq
 		return nil, err
 	}
 	segment, _ := strconv.ParseInt(seg, 10, 64)
-	maxIndex := segment*Segment_Limit + length - 1
+	maxIndex := segment*SegmentLimit + length - 1
 	if convIndex > maxIndex {
 		convIndex = maxIndex
 	} else {
-		segment = convIndex / Segment_Limit
+		segment = convIndex / SegmentLimit
 	}
-	messageIds := []int64{}
+	messageIds := make([]int64, 0)
 	for limit > 0 && segment >= 0 {
 		indexKey = fmt.Sprintf("convIndex:%d:%d", convShortId, segment)
 		length, err = dal.KvrocksServer.LLen(ctx, indexKey)

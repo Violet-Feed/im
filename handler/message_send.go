@@ -17,9 +17,9 @@ func checkMessageSendRequest(c *gin.Context, req *im.SendMessageRequest) bool {
 }
 
 func Send(c *gin.Context) {
-	var sendMessageRequest *im.SendMessageRequest
-	err := c.ShouldBindJSON(&sendMessageRequest)
-	if err != nil || !checkMessageSendRequest(c, sendMessageRequest) {
+	var req *im.SendMessageRequest
+	err := c.ShouldBindJSON(&req)
+	if err != nil || !checkMessageSendRequest(c, req) {
 		c.JSON(http.StatusOK, StateCode_Param_ERROR)
 		return
 	}
@@ -28,11 +28,11 @@ func Send(c *gin.Context) {
 
 	//TODO：鉴权
 	messageId := util.MsgIdGenerator.Generate().Int64()
-	if sendMessageRequest.GetConvType() == int32(im.ConversationType_ConversationType_One_Chat) {
-		if sendMessageRequest.GetConvShortId() == 0 { //创建会话
+	if req.GetConvType() == int32(im.ConversationType_ConversationType_One_Chat) {
+		if req.GetConvShortId() == 0 { //创建会话
 			createConversationRequest := &im.CreateConversationRequest{
-				ConvId:   sendMessageRequest.ConvId,
-				ConvType: sendMessageRequest.ConvType,
+				ConvId:   req.ConvId,
+				ConvType: req.ConvType,
 				OwnerId:  util.Int64(userId),
 			}
 			createConversationResponse := &im.CreateConversationResponse{}
@@ -41,25 +41,25 @@ func Send(c *gin.Context) {
 				c.JSON(http.StatusOK, StateCode_Internal_ERROR)
 				return
 			}
-			sendMessageRequest.ConvShortId = createConversationResponse.ConvShortId
+			req.ConvShortId = createConversationResponse.ConvShortId
 		}
 	}
 	createTime := time.Now().UnixMilli()
 	//TODO：消息频率控制
 	messageBody := &im.MessageBody{
 		UserId:      util.Int64(userId),
-		ConvId:      sendMessageRequest.ConvId,
-		ConvShortId: sendMessageRequest.ConvShortId,
-		ConvType:    sendMessageRequest.ConvType,
+		ConvId:      req.ConvId,
+		ConvShortId: req.ConvShortId,
+		ConvType:    req.ConvType,
 		MsgId:       util.Int64(messageId),
-		MsgType:     sendMessageRequest.MsgType,
-		MsgContent:  sendMessageRequest.MsgContent,
+		MsgType:     req.MsgType,
+		MsgContent:  req.MsgContent,
 		CreateTime:  util.Int64(createTime),
 	}
 	messageEvent := &im.MessageEvent{
 		MsgBody: messageBody,
 	}
-	err = mq.SendToMq(c, "conversation", strconv.FormatInt(sendMessageRequest.GetConvShortId(), 10), messageEvent)
+	err = mq.SendToMq(c, "conversation", strconv.FormatInt(req.GetConvShortId(), 10), messageEvent)
 	if err != nil {
 		c.JSON(http.StatusOK, StateCode_Internal_ERROR)
 		return

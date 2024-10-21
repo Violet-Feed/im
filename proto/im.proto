@@ -26,33 +26,33 @@ message BaseResp{
 }
 //TODO:message proto
 message MessageBody{
-  optional int64 UserId=1;
-  optional string ConvId = 2;
-  optional int64 ConvShortId = 3;
-  optional int32 ConvType = 4;
-  optional int64 MsgId=5;
-  optional int32 MsgType = 6;
-  optional string MsgContent = 7;
-  optional int64 CreateTime=8;
+  optional int64 user_id=1;
+  optional string conv_id = 2;
+  optional int64 conv_short_id = 3;
+  optional int32 conv_type = 4;
+  optional int64 msg_id=5;
+  optional int32 msg_type = 6;
+  optional string msg_content = 7;
+  optional int64 create_time=8;
 }
 
 message MessageEvent{
-  optional MessageBody msgBody=1;
-  optional int64 ConvIndex=2;
-  optional bool Stored=3;
-  optional int64 UserConvIndex=4;
-  optional int64 PreUserConvIndex=5;
-  optional int64 BadgeCount=6;
-  optional int64 UserCmdIndex=7;
-  optional int32 RetryCount=8;
+  optional MessageBody msg_body=1;
+  optional int64 conv_index=2;
+  optional bool stored=3;
+  optional int64 user_conv_index=4;
+  optional int64 pre_user_conv_index=5;
+  optional int64 badge_count=6;
+  optional int64 user_cmd_index=7;
+  optional int32 retry_count=8;
 }
 
 message SendMessageRequest{
-  optional string ConvId = 1;
-  optional int64 ConvShortId = 2;
-  optional int32 ConvType = 3;
-  optional int32 MsgType = 4;
-  optional string MsgContent = 5;
+  optional string conv_id = 1;
+  optional int64 conv_short_id = 2;
+  optional int32 conv_type = 3;
+  optional int32 msg_type = 4;
+  optional string msg_content = 5;
 }
 
 message SendMessageResponse{
@@ -60,24 +60,28 @@ message SendMessageResponse{
 }
 
 message GetMessageByInitRequest{
-  optional int64 UserConvIndex=1;
+  optional int64 user_conv_index=1;
 }
 
 message GetMessageByInitResponse{
-
+  repeated MessageBody msg_bodies=1;
+  optional int64 next_user_conv_index = 2;
+  optional bool has_more = 3;
+  optional int64 user_conv_index = 4;    // 初始化后完成从这个位置拉命令消息。 只有首次请求会返回。
+  optional int64 user_cmd_index = 5;    // 初始化后完成从这个位置拉最近会话链。 只有首次请求会返回。
 }
 
 message GetMessagesRequest{
-  optional int64 ConvShortId=1;
-  repeated int64 MsgIds=2;
+  optional int64 conv_short_id=1;
+  repeated int64 msg_ids=2;
 }
 
 message GetMessagesResponse{
-  repeated MessageBody MsgBodies=1;
+  repeated MessageBody msg_bodies=1;
 }
 
 message SaveMessageRequest{
-  optional MessageBody MsgBody=1;
+  optional MessageBody msg_body=1;
 }
 
 message SaveMessageResponse{
@@ -85,71 +89,84 @@ message SaveMessageResponse{
 }
 //TODO:conversation proto
 message CreateConversationRequest{
-  optional string ConvId=1;
-  optional int32 ConvType=2;
-  optional int64 OwnerId=3;
+  optional string conv_id=1;
+  optional int32 conv_type=2;
+  optional int64 owner_id=3;
 }
 
 message CreateConversationResponse{
-  optional int64 ConvShortId=1;
-  optional string ConvInfo=2;
+  optional int64 conv_short_id=1;
+  optional string conv_info=2;
 }
 
 message IncrConversationBadgeRequest{
-  optional int64 UserId=1;
-  optional int64 ConvShortId=2;
+  optional int64 user_id=1;
+  optional int64 conv_short_id=2;
 }
 
 message IncrConversationBadgeResponse{
-  optional int64 BadgeCount=1;
+  optional int64 badge_count=1;
 }
 //TODO:index proto
 message AppendConversationIndexRequest{
-  optional int64 ConvShortId=1;
-  optional int64 MsgId=2;
+  optional int64 conv_short_id=1;
+  optional int64 msg_id=2;
 }
 
 message AppendConversationIndexResponse{
-  optional int64 ConvIndex=1;
+  optional int64 conv_index=1;
 }
 
 message PullConversationIndexRequest{
-  optional int64 ConvShortId=1;
-  optional int64 ConvIndex=2;
-  optional int64 Limit=3;
+  optional int64 conv_short_id=1;
+  optional int64 conv_index=2;
+  optional int64 limit=3;
 }
 
 message PullConversationIndexResponse{
-  repeated int64 MsgIds=1;
+  repeated int64 msg_ids=1;
 }
 
 message AppendUserConvIndexRequest{
-  optional int64 UserId=1;
-  optional int64 ConvShortId=2;
+  optional int64 user_id=1;
+  optional int64 conv_short_id=2;
 }
 
 message AppendUserConvIndexResponse{
-  optional int64 UserConvIndex=1;
-  optional int64 PreUserConvIndex=2;
+  optional int64 user_conv_index=1;
+  optional int64 pre_user_conv_index=2;
+}
+
+message PullUserConvIndexRequest{
+  optional int64 user_id=1;
+  optional int64 user_conv_index=2;
+  optional int64 limit=3;
+}
+
+message PullUserConvIndexResponse{
+  repeated int64 conv_short_ids=1;
+  optional int64 user_conv_index=2;
+  optional int64 next_user_conv_index=3;
+  optional bool has_more=4;
 }
 
 message AppendUserCmdIndexRequest{
-  optional int64 UserId=1;
-  optional int64 MsgId=2;
+  optional int64 user_id=1;
+  optional int64 msg_id=2;
 }
 
 message AppendUserCmdIndexResponse{
-  optional int64 UserCmdIndex=1;
+  optional int64 user_cmd_index=1;
 }
 //TODO:push
 message PushRequest{
-  optional MessageBody MsgBody=1;
-  optional int64 ReceiverId=2;
-  optional int64 ConvIndex=3;
-  optional int64 UserConvIndex=4;
-  optional int64 PreUserConvIndex=5;
-  optional int64 BadgeCount=6;
-  optional int64 UserCmdIndex=7;
+  optional MessageBody msg_body=1;
+  optional int64 receiver_id=2;
+  optional int64 conv_index=3;
+  optional int64 user_conv_index=4;
+  optional int64 pre_user_conv_index=5;
+  optional int64 badge_count=6;
+  optional int64 user_cmd_index=7;
 }
 
 message PushResponse{

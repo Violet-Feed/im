@@ -45,7 +45,7 @@ func AppendUserCmdIndex(ctx context.Context, req *im.AppendUserCmdIndexRequest) 
 			return nil, err
 		}
 		segment, _ := strconv.ParseInt(seg, 10, 64)
-		if subIndex > Segment_Limit {
+		if subIndex > SegmentLimit {
 			newSeg := strconv.FormatInt(segment+1, 10)
 			opt, err := dal.KvrocksServer.Cas(ctx, segKey, seg, newSeg)
 			if err != nil {
@@ -53,13 +53,13 @@ func AppendUserCmdIndex(ctx context.Context, req *im.AppendUserCmdIndexRequest) 
 				return nil, err
 			}
 			if opt == 1 {
-				err = dal.KvrocksServer.Expire(ctx, indexKey, Segment_TTL)
+				err = dal.KvrocksServer.Expire(ctx, indexKey, SegmentTTL)
 				if err != nil {
 					logrus.Errorf("[AppendUserCmdIndex] kvrocks Expire err. err = %v", err)
 				}
 			}
 		} else {
-			resp.UserCmdIndex = util.Int64(segment*Segment_Limit + subIndex)
+			resp.UserCmdIndex = util.Int64(segment*SegmentLimit + subIndex)
 			return resp, nil
 		}
 	}

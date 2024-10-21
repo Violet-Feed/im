@@ -50,6 +50,7 @@ func Router(r *gin.Engine) *gin.Engine {
 		message.POST("/mark_read")
 		message.POST("/get_by_init", handler.GetByInit)
 		message.POST("/get_by_conv", handler.GetByConv)
+		message.POST("/get_by_user", handler.GetByUser)
 	}
 	conversation := r.Group("/conversation")
 	{

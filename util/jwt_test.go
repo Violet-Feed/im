@@ -5,7 +5,7 @@ import (
 )
 
 func TestJwt(t *testing.T) {
-	userId := MessageIdGenerator.Generate().Int64()
+	userId := MsgIdGenerator.Generate().Int64()
 	t.Log(userId)
 	token, err := GenerateUserToken(userId)
 	if err != nil {
