@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"im/dal"
 	"im/proto_gen/im"
+	"im/util"
 	"strconv"
 )
 
@@ -68,5 +69,6 @@ func PullConversationIndex(ctx context.Context, req *im.PullConversationIndexReq
 		limit -= stop - start + 1
 	}
 	resp.MsgIds = messageIds
+	resp.LastConvIndex = util.Int64(convIndex)
 	return resp, nil
 }

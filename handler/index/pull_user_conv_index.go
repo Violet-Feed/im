@@ -14,7 +14,7 @@ import (
 func PullUserConvIndex(ctx context.Context, req *im.PullUserConvIndexRequest) (resp *im.PullUserConvIndexResponse, err error) {
 	resp = &im.PullUserConvIndexResponse{}
 	userId := req.GetUserId()
-	userConvIndex := req.GetUserConvIndex() - 1
+	userConvIndex := req.GetUserConvIndex()
 	limit := req.GetLimit()
 	key := fmt.Sprintf("userConvIndex:%d", userId)
 	opt := &redis.ZRangeBy{
@@ -34,8 +34,8 @@ func PullUserConvIndex(ctx context.Context, req *im.PullUserConvIndexRequest) (r
 	resp.ConvShortIds = convShortIds
 	count := len(members)
 	if count > 0 {
-		resp.UserConvIndex = util.Int64(int64(members[0].Score))
-		resp.NextUserConvIndex = util.Int64(int64(members[count-1].Score))
+		resp.LastUserConvIndex = util.Int64(int64(members[0].Score))
+		resp.NextUserConvIndex = util.Int64(int64(members[count-1].Score) - 1)
 	}
 	resp.HasMore = util.Bool(count >= int(limit))
 	return resp, nil

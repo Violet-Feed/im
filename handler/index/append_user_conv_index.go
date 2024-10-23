@@ -44,10 +44,7 @@ func AppendUserConvIndex(ctx context.Context, req *im.AppendUserConvIndexRequest
 		logrus.Errorf("[AppendUserConvIndex] kvrocks ZAdd err. err = %v", err)
 		return nil, err
 	}
-	_, err = dal.KvrocksServer.ZRemRangeByRank(ctx, key, 0, -ConvLimit)
-	if err != nil {
-		logrus.Errorf("[AppendUserConvIndex] kvrocks ZRemRangeByRank err. err = %v", err)
-	}
+	go dal.KvrocksServer.ZRemRangeByRank(ctx, key, 0, -ConvLimit)
 	resp.UserConvIndex = util.Int64(int64(userConvIndex))
 	resp.PreUserConvIndex = util.Int64(int64(preUserConvIndex))
 	return resp, nil
