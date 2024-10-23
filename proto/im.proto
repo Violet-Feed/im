@@ -71,12 +71,12 @@ message GetMessageByInitResponse{
   optional int64 user_cmd_index = 5;    // 初始化后完成从这个位置拉最近会话链。 只有首次请求会返回。
 }
 
-message BatchGetMessageRequest{
+message GetMessageRequest{
   optional int64 conv_short_id=1;
   repeated int64 msg_ids=2;
 }
 
-message BatchGetMessageResponse{
+message GetMessageResponse{
   repeated MessageBody msg_bodies=1;
 }
 
@@ -107,6 +107,8 @@ message IncrConversationBadgeRequest{
 message IncrConversationBadgeResponse{
   optional int64 badge_count=1;
 }
+
+
 //TODO:index proto
 message AppendConversationIndexRequest{
   optional int64 conv_short_id=1;

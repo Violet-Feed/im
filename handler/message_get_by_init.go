@@ -58,16 +58,16 @@ func GetByInit(c *gin.Context) {
 				logrus.Errorf("[GetByInit] PullConversationIndex err. err = %v", err)
 				return
 			}
-			batchGetMessageRequest := &im.BatchGetMessageRequest{
+			getMessageRequest := &im.GetMessageRequest{
 				ConvShortId: util.Int64(convId),
 				MsgIds:      pullConversationIndexResponse.MsgIds,
 			}
-			batchGetMessageResponse, err := message.BatchGetMessage(ctx, batchGetMessageRequest)
+			getMessageResponse, err := message.GetMessage(ctx, getMessageRequest)
 			if err != nil {
-				logrus.Errorf("[GetByInit] GetMessages err. err = %v", err)
+				logrus.Errorf("[GetByInit] GetMessage err. err = %v", err)
 				return
 			}
-			batchGetMessageResponse.GetMsgBodies()
+			getMessageResponse.GetMsgBodies()
 		}(c, convId)
 	}
 	wg.Add(1)
@@ -88,9 +88,9 @@ func GetByInit(c *gin.Context) {
 	wg.Add(1)
 	go func(ctx context.Context, convIds []int64) {
 		defer wg.Done()
-		conversation.BatchGetConversationBadge(ctx)
+		conversation.GetConversationBadge(ctx)
 		if err != nil {
-			logrus.Errorf("[GetByInit] BatchGetConversationBadge err. err = %v", err)
+			logrus.Errorf("[GetByInit] GetConversationBadge err. err = %v", err)
 			return
 		}
 	}(c, pullUserConvIndexResponse.GetConvShortIds())
