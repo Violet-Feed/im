@@ -108,7 +108,14 @@ message IncrConversationBadgeResponse{
   optional int64 badge_count=1;
 }
 
+message GetConversationBadgeRequest{
+  optional int64 user_id=1;
+  repeated int64 conv_short_ids=2;
+}
 
+message GetConversationBadgeResponse{
+  repeated int64 badge_counts=1;
+}
 //TODO:index proto
 message AppendConversationIndexRequest{
   optional int64 conv_short_id=1;
