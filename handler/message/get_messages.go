@@ -9,8 +9,8 @@ import (
 	"im/proto_gen/im"
 )
 
-func GetMessage(ctx context.Context, req *im.GetMessageRequest) (resp *im.GetMessageResponse, err error) {
-	resp = &im.GetMessageResponse{}
+func GetMessages(ctx context.Context, req *im.GetMessagesRequest) (resp *im.GetMessagesResponse, err error) {
+	resp = &im.GetMessagesResponse{}
 	convShortId := req.GetConvShortId()
 	messageIds := req.GetMsgIds()
 	keys := make([]string, len(messageIds))

@@ -9,8 +9,8 @@ import (
 	"strconv"
 )
 
-func GetConversationBadge(ctx context.Context, req *im.GetConversationBadgeRequest) (resp *im.GetConversationBadgeResponse, err error) {
-	resp = &im.GetConversationBadgeResponse{}
+func GetConversationBadges(ctx context.Context, req *im.GetConversationBadgesRequest) (resp *im.GetConversationBadgesResponse, err error) {
+	resp = &im.GetConversationBadgesResponse{}
 	userId := req.GetUserId()
 	convShortIds := req.GetConvShortIds()
 	keys := make([]string, 0)

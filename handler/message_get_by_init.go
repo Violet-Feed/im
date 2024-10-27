@@ -58,11 +58,11 @@ func GetByInit(c *gin.Context) {
 				logrus.Errorf("[GetByInit] PullConversationIndex err. err = %v", err)
 				return
 			}
-			getMessageRequest := &im.GetMessageRequest{
+			getMessageRequest := &im.GetMessagesRequest{
 				ConvShortId: util.Int64(convId),
 				MsgIds:      pullConversationIndexResponse.MsgIds,
 			}
-			getMessageResponse, err := message.GetMessage(ctx, getMessageRequest)
+			getMessageResponse, err := message.GetMessages(ctx, getMessageRequest)
 			if err != nil {
 				logrus.Errorf("[GetByInit] GetMessage err. err = %v", err)
 				return
@@ -88,11 +88,11 @@ func GetByInit(c *gin.Context) {
 	wg.Add(1)
 	go func(ctx context.Context, convIds []int64) {
 		defer wg.Done()
-		getConversationBadgeRequest := &im.GetConversationBadgeRequest{
+		getConversationBadgeRequest := &im.GetConversationBadgesRequest{
 			UserId:       util.Int64(userId),
 			ConvShortIds: convIds,
 		}
-		getConversationBadgeResponse, err := conversation.GetConversationBadge(ctx, getConversationBadgeRequest)
+		getConversationBadgeResponse, err := conversation.GetConversationBadges(ctx, getConversationBadgeRequest)
 		if err != nil {
 			logrus.Errorf("[GetByInit] GetConversationBadge err. err = %v", err)
 			return
@@ -102,7 +102,7 @@ func GetByInit(c *gin.Context) {
 	//TODO:获取会话core,setting,ext,member信息
 	wg.Wait()
 	//获取最近会话id(recent_conversation,abase,zset)->拉取会话链(inbox_api,V2)->获取消息内容(message_api)->隐藏撤回消息
-	//->获取会话core,setting信息(im_conversation_api)->获取会话ext信息(conversation_ext)->获取群聊是否是成员最近成员信息(im_conversation_api)
+	//->获取会话core,setting信息(im_conversation_api)->获取会话ext信息(conversation_ext)->获取群聊是否是成员,最近成员信息(im_conversation_api)
 	//->获取消息总数(im_counter_manager_rust,mget)->(第一个请求：获取命令链最近index(inbox_api,V2)->获取最近会话version(recent_conversation))
 	//->信息整理过滤
 }
