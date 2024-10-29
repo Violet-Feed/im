@@ -2,6 +2,7 @@ syntax = "proto3";
 option java_package = "violet.video.common.proto_gen.im";
 option go_package = "/proto_gen/im";
 
+//TODO:constant
 enum ConversationType{
   ConversationType_Not_Use = 0;
   ConversationType_One_Chat = 1;
@@ -24,29 +25,8 @@ message BaseResp{
   optional int32 StateCode=1;
   optional string StateMessage=2;
 }
-//TODO:message proto
-message MessageBody{
-  optional int64 user_id=1;
-  optional string conv_id = 2;
-  optional int64 conv_short_id = 3;
-  optional int32 conv_type = 4;
-  optional int64 msg_id=5;
-  optional int32 msg_type = 6;
-  optional string msg_content = 7;
-  optional int64 create_time=8;
-}
 
-message MessageEvent{
-  optional MessageBody msg_body=1;
-  optional int64 conv_index=2;
-  optional bool stored=3;
-  optional int64 user_conv_index=4;
-  optional int64 pre_user_conv_index=5;
-  optional int64 badge_count=6;
-  optional int64 user_cmd_index=7;
-  optional int32 retry_count=8;
-}
-
+//TODO:http
 message SendMessageRequest{
   optional string conv_id = 1;
   optional int64 conv_short_id = 2;
@@ -71,6 +51,29 @@ message GetMessageByInitResponse{
   optional int64 user_cmd_index = 5;    // 初始化后完成从这个位置拉最近会话链。 只有首次请求会返回。
 }
 
+//TODO:message proto
+message MessageBody{
+  optional int64 user_id=1;
+  optional string conv_id = 2;
+  optional int64 conv_short_id = 3;
+  optional int32 conv_type = 4;
+  optional int64 msg_id=5;
+  optional int32 msg_type = 6;
+  optional string msg_content = 7;
+  optional int64 create_time=8;
+}
+
+message MessageEvent{
+  optional MessageBody msg_body=1;
+  optional int64 conv_index=2;
+  optional bool stored=3;
+  optional int64 user_conv_index=4;
+  optional int64 pre_user_conv_index=5;
+  optional int64 badge_count=6;
+  optional int64 user_cmd_index=7;
+  optional int32 retry_count=8;
+}
+
 message GetMessagesRequest{
   optional int64 conv_short_id=1;
   repeated int64 msg_ids=2;
@@ -91,7 +94,12 @@ message SaveMessageResponse{
 message CreateConversationRequest{
   optional string conv_id=1;
   optional int32 conv_type=2;
-  optional int64 owner_id=3;
+  optional string name=3;
+  optional string avatar_uri=4;
+  optional string description=5;
+  optional string notice=6;
+  optional int64 owner_id=7;
+  optional string extra=8;
 }
 
 message CreateConversationResponse{

@@ -26,8 +26,7 @@ func init() {
 
 func SendToMq(ctx context.Context, topic string, key string, message *im.MessageEvent) error {
 	body, _ := json.Marshal(message)
-	_, err := p.SendSync(ctx, primitive.NewMessage(topic, body).
-		WithShardingKey(key))
+	_, err := p.SendSync(ctx, primitive.NewMessage(topic, body).WithShardingKey(key))
 	if err != nil {
 		logrus.Errorf("[SendMq] mq send message err, err = %v", err)
 		return err

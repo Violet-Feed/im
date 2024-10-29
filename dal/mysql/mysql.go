@@ -6,17 +6,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type MysqlService interface {
-}
+var DB *gorm.DB
 
-type MysqlServiceImpl struct {
-	client *gorm.DB
-}
-
-func NewMysqlServiceImpl() MysqlServiceImpl {
+func InitMysql() {
 	db, err := gorm.Open("mysql", "root:123456abc@tcp(127.0.0.1:3306)/im?charset=utf8&parseTime=True&loc=Local")
 	if err != nil {
 		logrus.Fatalf("[NewMysqlServiceImpl] mysql connect err. err = %v", err)
 	}
-	return MysqlServiceImpl{client: db}
+	db.LogMode(false)
+	DB = db
 }

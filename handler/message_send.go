@@ -36,7 +36,7 @@ func Send(c *gin.Context) {
 				OwnerId:  util.Int64(userId),
 			}
 			createConversationResponse := &im.CreateConversationResponse{}
-			err := conversation.CreateConversation(c, createConversationRequest, createConversationResponse)
+			createConversationResponse, err := conversation.CreateConversation(c, createConversationRequest)
 			if err != nil {
 				c.JSON(http.StatusOK, StateCode_Internal_ERROR)
 				return

@@ -11,12 +11,11 @@ var (
 	DemoServer    rpc.DemoServiceImpl
 	RedisServer   redis.RedisServiceImpl
 	KvrocksServer kvrocks.KvrocksServiceImpl
-	MysqlServer   mysql.MysqlServiceImpl
 )
 
 func InitService() {
 	DemoServer = rpc.NewDemoServiceImpl()
 	RedisServer = redis.NewRedisServiceImpl()
 	KvrocksServer = kvrocks.NewKvrocksServiceImpl()
-	MysqlServer = mysql.NewMysqlServiceImpl()
+	mysql.InitMysql()
 }
