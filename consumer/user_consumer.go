@@ -23,14 +23,14 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	logrus.Infof("[UserProcess] rocketmq receive message success. message = %v, tag = %v", messageEvent, userId)
 	//TODO:判断是否为高频用户(本地+redis,写入高频队列batch)->处理重试消息
 	if messageEvent.GetMsgBody().GetMsgType() < 1000 {
-		if messageEvent.GetUserConvIndex() == 0 {
-			appendUserConvIndexRequest := &im.AppendUserConvIndexRequest{
-				UserId:      util.Int64(userId),
-				ConvShortId: messageEvent.GetMsgBody().ConvShortId,
+		if messageEvent.GetUserConIndex() == 0 {
+			appendUserConIndexRequest := &im.AppendUserConIndexRequest{
+				UserId:     util.Int64(userId),
+				ConShortId: messageEvent.GetMsgBody().ConShortId,
 			}
-			appendUserConvIndexResponse, err := index.AppendUserConvIndex(ctx, appendUserConvIndexRequest)
+			appendUserConIndexResponse, err := index.AppendUserConIndex(ctx, appendUserConIndexRequest)
 			if err != nil {
-				logrus.Errorf("[UserProcess] AppendUserConvIndex err. err = %v", err)
+				logrus.Errorf("[UserProcess] AppendUserConIndex err. err = %v", err)
 				retryCount := messageEvent.GetRetryCount()
 				if retryCount > 3 {
 					logrus.Warnf("[UserProcess] retry too much. message = %v", messageEvent)
@@ -41,13 +41,13 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 				}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), backoff.Infinite))
 				return consumer.ConsumeSuccess, nil
 			}
-			messageEvent.UserConvIndex = appendUserConvIndexResponse.UserConvIndex
-			messageEvent.PreUserConvIndex = appendUserConvIndexResponse.PreUserConvIndex
+			messageEvent.UserConIndex = appendUserConIndexResponse.UserConIndex
+			messageEvent.PreUserConIndex = appendUserConIndexResponse.PreUserConIndex
 		}
 		if messageEvent.GetBadgeCount() == 0 {
 			incrConversationBadgeRequest := &im.IncrConversationBadgeRequest{
-				UserId:      util.Int64(userId),
-				ConvShortId: messageEvent.GetMsgBody().ConvShortId,
+				UserId:     util.Int64(userId),
+				ConShortId: messageEvent.GetMsgBody().ConShortId,
 			}
 			incrConversationBadgeResponse, err := conversation.IncrConversationBadge(ctx, incrConversationBadgeRequest)
 			if err != nil {
@@ -67,7 +67,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	} else if messageEvent.GetUserCmdIndex() == 0 {
 		appendUserCmdIndexRequest := &im.AppendUserCmdIndexRequest{
 			UserId: util.Int64(userId),
-			MsgId:  messageEvent.GetMsgBody().ConvShortId,
+			MsgId:  messageEvent.GetMsgBody().ConShortId,
 		}
 		appendUserCmdIndexResponse, err := index.AppendUserCmdIndex(ctx, appendUserCmdIndexRequest)
 		if err != nil {
@@ -85,13 +85,13 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		messageEvent.UserCmdIndex = appendUserCmdIndexResponse.UserCmdIndex
 	}
 	pushRequest := &im.PushRequest{
-		MsgBody:          messageEvent.GetMsgBody(),
-		ReceiverId:       util.Int64(userId),
-		ConvIndex:        messageEvent.ConvIndex,
-		UserConvIndex:    messageEvent.UserConvIndex,
-		PreUserConvIndex: messageEvent.PreUserConvIndex,
-		BadgeCount:       messageEvent.BadgeCount,
-		UserCmdIndex:     messageEvent.UserCmdIndex,
+		MsgBody:         messageEvent.GetMsgBody(),
+		ReceiverId:      util.Int64(userId),
+		ConIndex:        messageEvent.ConIndex,
+		UserConIndex:    messageEvent.UserConIndex,
+		PreUserConIndex: messageEvent.PreUserConIndex,
+		BadgeCount:      messageEvent.BadgeCount,
+		UserCmdIndex:    messageEvent.UserCmdIndex,
 	}
 	err := backoff.Retry(func() error {
 		_, err := push.Push(ctx, pushRequest)

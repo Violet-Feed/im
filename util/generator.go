@@ -7,7 +7,7 @@ import (
 
 var (
 	MsgIdGenerator  *snowflake.Node
-	ConvIdGenerator *snowflake.Node
+	ConIdGenerator  *snowflake.Node
 	ConnIdGenerator *snowflake.Node
 )
 
@@ -17,9 +17,9 @@ func init() {
 	if err != nil {
 		logrus.Fatalf("[main] MsgIdGenerator NewNode err. err = %v", err)
 	}
-	ConvIdGenerator, err = snowflake.NewNode(0)
+	ConIdGenerator, err = snowflake.NewNode(0)
 	if err != nil {
-		logrus.Fatalf("[main] ConvIdGenerator NewNode err. err = %v", err)
+		logrus.Fatalf("[main] ConIdGenerator NewNode err. err = %v", err)
 	}
 	ConnIdGenerator, err = snowflake.NewNode(0)
 	if err != nil {

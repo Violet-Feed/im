@@ -18,8 +18,8 @@ const SleepTime = 5 * time.Millisecond
 func IncrConversationBadge(ctx context.Context, req *im.IncrConversationBadgeRequest) (resp *im.IncrConversationBadgeResponse, err error) {
 	resp = &im.IncrConversationBadgeResponse{}
 	userId := req.GetUserId()
-	convShortId := req.GetConvShortId()
-	key := fmt.Sprintf("badge:%d:%d", userId, convShortId)
+	conShortId := req.GetConShortId()
+	key := fmt.Sprintf("badge:%d:%d", userId, conShortId)
 	for i := 0; i < 3; i++ {
 		badgeCnt, err := dal.KvrocksServer.Get(ctx, key)
 		if errors.Is(err, redis.Nil) {

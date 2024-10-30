@@ -14,10 +14,10 @@ import (
 
 func PullConversationIndex(ctx context.Context, req *im.PullConversationIndexRequest) (resp *im.PullConversationIndexResponse, err error) {
 	resp = &im.PullConversationIndexResponse{}
-	convShortId := req.GetConvShortId()
-	convIndex := req.GetConvIndex()
+	conShortId := req.GetConShortId()
+	conIndex := req.GetConIndex()
 	limit := req.GetLimit()
-	segKey := fmt.Sprintf("convSeg:%d", convShortId)
+	segKey := fmt.Sprintf("convSeg:%d", conShortId)
 	seg, err := dal.KvrocksServer.Get(ctx, segKey)
 	if errors.Is(err, redis.Nil) {
 		return resp, nil
@@ -25,7 +25,7 @@ func PullConversationIndex(ctx context.Context, req *im.PullConversationIndexReq
 		logrus.Errorf("[PullConversationIndex] kvrocks get seg err. err = %v", err)
 		return nil, err
 	}
-	indexKey := fmt.Sprintf("convIndex:%d:%s", convShortId, seg)
+	indexKey := fmt.Sprintf("convIndex:%d:%s", conShortId, seg)
 	length, err := dal.KvrocksServer.LLen(ctx, indexKey)
 	if err != nil {
 		logrus.Errorf("[PullConversationIndex] kvrocks llen 1 err. err = %v", err)
@@ -33,14 +33,14 @@ func PullConversationIndex(ctx context.Context, req *im.PullConversationIndexReq
 	}
 	segment, _ := strconv.ParseInt(seg, 10, 64)
 	maxIndex := segment*SegmentLimit + length - 1
-	if convIndex > maxIndex {
-		convIndex = maxIndex
+	if conIndex > maxIndex {
+		conIndex = maxIndex
 	} else {
-		segment = convIndex / SegmentLimit
+		segment = conIndex / SegmentLimit
 	}
 	messageIds := make([]int64, 0)
 	for limit > 0 && segment >= 0 {
-		indexKey = fmt.Sprintf("convIndex:%d:%d", convShortId, segment)
+		indexKey = fmt.Sprintf("convIndex:%d:%d", conShortId, segment)
 		length, err = dal.KvrocksServer.LLen(ctx, indexKey)
 		if err != nil {
 			logrus.Errorf("[PullConversationIndex] kvrocks llen 2 err. err = %v", err)
@@ -69,6 +69,6 @@ func PullConversationIndex(ctx context.Context, req *im.PullConversationIndexReq
 		limit -= stop - start + 1
 	}
 	resp.MsgIds = messageIds
-	resp.LastConvIndex = util.Int64(convIndex)
+	resp.LastConIndex = util.Int64(conIndex)
 	return resp, nil
 }

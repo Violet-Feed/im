@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"im/dal"
+	"im/proto_gen/im"
 	"im/util"
 	"net/http"
 	"sync"
@@ -33,7 +34,7 @@ func WebsocketHandler(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		logrus.Errorf("[WebsocketHandler] upgrade websocket err. err = %v", err)
-		c.JSON(http.StatusOK, StateCode_Internal_ERROR)
+		c.JSON(http.StatusOK, im.StatusCode_Server_Error)
 		return
 	}
 	defer conn.Close()
@@ -49,7 +50,7 @@ func WebsocketHandler(c *gin.Context) {
 	err = dal.RedisServer.HSet(c, key, connId, connInfo)
 	if err != nil {
 		logrus.Errorf("[WebsocketHandler] redis hset err. err = %v", err)
-		c.JSON(http.StatusOK, StateCode_Internal_ERROR)
+		c.JSON(http.StatusOK, im.StatusCode_Server_Error)
 		return
 	}
 	defer func() {

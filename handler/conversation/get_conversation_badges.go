@@ -12,9 +12,9 @@ import (
 func GetConversationBadges(ctx context.Context, req *im.GetConversationBadgesRequest) (resp *im.GetConversationBadgesResponse, err error) {
 	resp = &im.GetConversationBadgesResponse{}
 	userId := req.GetUserId()
-	convShortIds := req.GetConvShortIds()
+	conShortIds := req.GetConShortIds()
 	keys := make([]string, 0)
-	for _, id := range convShortIds {
+	for _, id := range conShortIds {
 		key := fmt.Sprintf("badge:%d:%d", userId, id)
 		keys = append(keys, key)
 	}

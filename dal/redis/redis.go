@@ -15,6 +15,8 @@ type RedisService interface {
 	HGetAll(ctx context.Context, key string) (map[string]string, error)
 	HDel(ctx context.Context, key string, field string) error
 	HExists(ctx context.Context, key string, field string) (bool, error)
+	ZAdd(ctx context.Context, key string, values []redis.Z) error
+	ZCard(ctx context.Context, key string) (int64, error)
 	FlushDB(ctx context.Context) error
 }
 
@@ -90,6 +92,24 @@ func (r *RedisServiceImpl) HExists(ctx context.Context, key string, field string
 	if err != nil {
 		logrus.Errorf("[HExists] redis hexists err. err = %v", err)
 		return false, err
+	}
+	return res, nil
+}
+
+func (r *RedisServiceImpl) ZAdd(ctx context.Context, key string, values []redis.Z) error {
+	_, err := r.client.ZAdd(ctx, key, values...).Result()
+	if err != nil {
+		logrus.Errorf("[ZAdd] redis zadd err. err = %v", err)
+		return err
+	}
+	return nil
+}
+
+func (r *RedisServiceImpl) ZCard(ctx context.Context, key string) (int64, error) {
+	res, err := r.client.ZCard(ctx, key).Result()
+	if err != nil {
+		logrus.Errorf("[ZCard] redis zcard err. err = %v", err)
+		return 0, err
 	}
 	return res, nil
 }

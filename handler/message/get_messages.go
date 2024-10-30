@@ -11,11 +11,11 @@ import (
 
 func GetMessages(ctx context.Context, req *im.GetMessagesRequest) (resp *im.GetMessagesResponse, err error) {
 	resp = &im.GetMessagesResponse{}
-	convShortId := req.GetConvShortId()
+	conShortId := req.GetConShortId()
 	messageIds := req.GetMsgIds()
 	keys := make([]string, len(messageIds))
 	for _, id := range messageIds {
-		keys = append(keys, fmt.Sprintf("%d:%d", convShortId, id))
+		keys = append(keys, fmt.Sprintf("%d:%d", conShortId, id))
 	}
 	messages, err := dal.KvrocksServer.MGet(ctx, keys)
 	if err != nil {

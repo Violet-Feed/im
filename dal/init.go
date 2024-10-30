@@ -1,6 +1,7 @@
 package dal
 
 import (
+	"github.com/jinzhu/gorm"
 	"im/dal/kvrocks"
 	"im/dal/mysql"
 	"im/dal/redis"
@@ -11,11 +12,12 @@ var (
 	DemoServer    rpc.DemoServiceImpl
 	RedisServer   redis.RedisServiceImpl
 	KvrocksServer kvrocks.KvrocksServiceImpl
+	MysqlDB       *gorm.DB
 )
 
 func InitService() {
 	DemoServer = rpc.NewDemoServiceImpl()
 	RedisServer = redis.NewRedisServiceImpl()
 	KvrocksServer = kvrocks.NewKvrocksServiceImpl()
-	mysql.InitMysql()
+	MysqlDB = mysql.NewMysqlDB()
 }

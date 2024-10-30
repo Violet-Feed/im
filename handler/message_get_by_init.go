@@ -20,38 +20,38 @@ const (
 )
 
 func GetByInit(c *gin.Context) {
-	var req *im.GetMessageByInitRequest
+	var req *im.MessageGetByInitRequest
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		c.JSON(http.StatusOK, StateCode_Param_ERROR)
+		c.JSON(http.StatusOK, im.StatusCode_Param_Error)
 		return
 	}
 	userIdStr, _ := c.Get("userId")
 	userId := userIdStr.(int64)
-	userConvIndex := req.GetUserConvIndex()
-	if userConvIndex == 0 {
-		userConvIndex = math.MaxInt64
+	userConIndex := req.GetUserConIndex()
+	if userConIndex == 0 {
+		userConIndex = math.MaxInt64
 	}
-	pullUserConvIndexRequest := &im.PullUserConvIndexRequest{
-		UserId:        util.Int64(userId),
-		UserConvIndex: util.Int64(userConvIndex),
-		Limit:         util.Int64(ConvLimit),
+	pullUserConIndexRequest := &im.PullUserConIndexRequest{
+		UserId:       util.Int64(userId),
+		UserConIndex: util.Int64(userConIndex),
+		Limit:        util.Int64(ConvLimit),
 	}
-	pullUserConvIndexResponse, err := index.PullUserConvIndex(c, pullUserConvIndexRequest)
+	pullUserConIndexResponse, err := index.PullUserConIndex(c, pullUserConIndexRequest)
 	if err != nil {
-		logrus.Errorf("[GetByInit] PullUserConvIndex err. err = %v", err)
-		c.JSON(http.StatusOK, StateCode_Internal_ERROR)
+		logrus.Errorf("[GetByInit] PullUserConIndex err. err = %v", err)
+		c.JSON(http.StatusOK, im.StatusCode_Server_Error)
 		return
 	}
 	wg := sync.WaitGroup{}
-	for _, convId := range pullUserConvIndexResponse.GetConvShortIds() {
+	for _, convId := range pullUserConIndexResponse.GetConShortIds() {
 		wg.Add(1)
 		go func(ctx context.Context, convId int64) {
 			defer wg.Done()
 			pullConversationIndexRequest := &im.PullConversationIndexRequest{
-				ConvShortId: util.Int64(convId),
-				ConvIndex:   util.Int64(math.MaxInt64),
-				Limit:       util.Int64(MsgLimit),
+				ConShortId: util.Int64(convId),
+				ConIndex:   util.Int64(math.MaxInt64),
+				Limit:      util.Int64(MsgLimit),
 			}
 			pullConversationIndexResponse, err := index.PullConversationIndex(ctx, pullConversationIndexRequest)
 			if err != nil {
@@ -59,8 +59,8 @@ func GetByInit(c *gin.Context) {
 				return
 			}
 			getMessageRequest := &im.GetMessagesRequest{
-				ConvShortId: util.Int64(convId),
-				MsgIds:      pullConversationIndexResponse.MsgIds,
+				ConShortId: util.Int64(convId),
+				MsgIds:     pullConversationIndexResponse.MsgIds,
 			}
 			getMessageResponse, err := message.GetMessages(ctx, getMessageRequest)
 			if err != nil {
@@ -89,8 +89,8 @@ func GetByInit(c *gin.Context) {
 	go func(ctx context.Context, convIds []int64) {
 		defer wg.Done()
 		getConversationBadgeRequest := &im.GetConversationBadgesRequest{
-			UserId:       util.Int64(userId),
-			ConvShortIds: convIds,
+			UserId:      util.Int64(userId),
+			ConShortIds: convIds,
 		}
 		getConversationBadgeResponse, err := conversation.GetConversationBadges(ctx, getConversationBadgeRequest)
 		if err != nil {
@@ -98,7 +98,7 @@ func GetByInit(c *gin.Context) {
 			return
 		}
 		getConversationBadgeResponse.GetBadgeCounts()
-	}(c, pullUserConvIndexResponse.GetConvShortIds())
+	}(c, pullUserConIndexResponse.GetConShortIds())
 	//TODO:获取会话core,setting,ext,member信息
 	wg.Wait()
 	//获取最近会话id(recent_conversation,abase,zset)->拉取会话链(inbox_api,V2)->获取消息内容(message_api)->隐藏撤回消息

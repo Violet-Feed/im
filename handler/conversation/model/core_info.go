@@ -1,7 +1,11 @@
-package mysql
+package model
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"github.com/sirupsen/logrus"
+	"im/dal"
 	"time"
 )
 
@@ -25,11 +29,16 @@ func (c *ConversationCoreInfo) TableName() string {
 	return "conversation_core_info"
 }
 
-func InsertCoreInfo(core *ConversationCoreInfo) error {
-	err := DB.Create(core).Error
+func InsertCoreInfo(ctx context.Context, core *ConversationCoreInfo) error {
+	err := dal.MysqlDB.Create(core).Error
 	if err != nil {
 		logrus.Errorf("mysql insert core err. err = %v", err)
 		return err
+	}
+	coreByte, err := json.Marshal(core)
+	if err == nil {
+		key := fmt.Sprintf("core:%d", core.ConShortId)
+		_ = dal.RedisServer.Set(ctx, key, string(coreByte), 1*time.Minute)
 	}
 	return nil
 }

@@ -20,9 +20,9 @@ const (
 
 func AppendConversationIndex(ctx context.Context, req *im.AppendConversationIndexRequest) (resp *im.AppendConversationIndexResponse, err error) {
 	resp = &im.AppendConversationIndexResponse{}
-	convShortId := req.GetConvShortId()
+	conShortId := req.GetConShortId()
 	messageId := req.GetMsgId()
-	segKey := fmt.Sprintf("convSeg:%d", convShortId)
+	segKey := fmt.Sprintf("convSeg:%d", conShortId)
 	for i := 0; i < 3; i++ {
 		seg, err := dal.KvrocksServer.Get(ctx, segKey)
 		if errors.Is(err, redis.Nil) {
@@ -44,7 +44,7 @@ func AppendConversationIndex(ctx context.Context, req *im.AppendConversationInde
 			logrus.Errorf("[AppendConversationIndex] kvrocks Get err. err = %v", err)
 			return nil, err
 		}
-		indexKey := fmt.Sprintf("convIndex:%d:%s", convShortId, seg)
+		indexKey := fmt.Sprintf("convIndex:%d:%s", conShortId, seg)
 		subIndex, err := dal.KvrocksServer.RPush(ctx, indexKey, []string{strconv.FormatInt(messageId, 10)})
 		if err != nil {
 			logrus.Errorf("[AppendConversationIndex] kvrocks RPush err. err = %v", err)
@@ -65,7 +65,7 @@ func AppendConversationIndex(ctx context.Context, req *im.AppendConversationInde
 				}
 			}
 		} else {
-			resp.ConvIndex = util.Int64(segment*SegmentLimit + subIndex)
+			resp.ConIndex = util.Int64(segment*SegmentLimit + subIndex)
 			return resp, nil
 		}
 	}

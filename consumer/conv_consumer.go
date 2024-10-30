@@ -33,17 +33,17 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			}
 			messageEvent.RetryCount = util.Int32(retryCount + 1)
 			err = backoff.Retry(func() error {
-				return mq.SendToMq(ctx, "conversation", strconv.FormatInt(messageEvent.GetMsgBody().GetConvShortId(), 10), messageEvent)
+				return mq.SendToMq(ctx, "conversation", strconv.FormatInt(messageEvent.GetMsgBody().GetConShortId(), 10), messageEvent)
 			}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), backoff.Infinite))
 			return consumer.ConsumeSuccess, nil
 		}
 		messageEvent.Stored = util.Bool(true)
 		logrus.Infof("[ConvProcess] StoreMessage sucess")
 	}
-	if messageEvent.GetConvIndex() == 0 && messageEvent.GetMsgBody().GetMsgType() < 1000 {
+	if messageEvent.GetConIndex() == 0 && messageEvent.GetMsgBody().GetMsgType() < 1000 {
 		appendConversationIndexRequest := &im.AppendConversationIndexRequest{
-			ConvShortId: messageEvent.GetMsgBody().ConvShortId,
-			MsgId:       messageEvent.GetMsgBody().MsgId,
+			ConShortId: messageEvent.GetMsgBody().ConShortId,
+			MsgId:      messageEvent.GetMsgBody().MsgId,
 		}
 		appendConversationIndexResponse, err := index.AppendConversationIndex(ctx, appendConversationIndexRequest)
 		if err != nil {
@@ -55,12 +55,12 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			}
 			messageEvent.RetryCount = util.Int32(retryCount + 1)
 			err = backoff.Retry(func() error {
-				return mq.SendToMq(ctx, "conversation", strconv.FormatInt(messageEvent.GetMsgBody().GetConvShortId(), 10), messageEvent)
+				return mq.SendToMq(ctx, "conversation", strconv.FormatInt(messageEvent.GetMsgBody().GetConShortId(), 10), messageEvent)
 			}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), backoff.Infinite))
 			return consumer.ConsumeSuccess, nil
 		}
-		messageEvent.ConvIndex = appendConversationIndexResponse.ConvIndex
-		logrus.Infof("[ConvProcess] AppendConversationIndex sucess. index = %v", messageEvent.GetConvIndex())
+		messageEvent.ConIndex = appendConversationIndexResponse.ConIndex
+		logrus.Infof("[ConvProcess] AppendConversationIndex sucess. index = %v", messageEvent.GetConIndex())
 	}
 	receivers := getReceivers(ctx, messageEvent)
 	for _, receiver := range receivers {
@@ -74,13 +74,13 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 }
 
 func getReceivers(ctx context.Context, event *im.MessageEvent) []int64 {
-	switch event.GetMsgBody().GetConvType() {
-	case int32(im.ConversationType_ConversationType_One_Chat):
-		parts := strings.Split(event.GetMsgBody().GetConvId(), ":")
+	switch event.GetMsgBody().GetConType() {
+	case int32(im.ConversationType_One_Chat):
+		parts := strings.Split(event.GetMsgBody().GetConId(), ":")
 		minId, _ := strconv.ParseInt(parts[0], 10, 64)
 		maxId, _ := strconv.ParseInt(parts[1], 10, 64)
 		return []int64{minId, maxId}
-	case int32(im.ConversationType_ConversationType_Group_Chat):
+	case int32(im.ConversationType_Group_Chat):
 		//TODO 获取群成员
 		return []int64{}
 	default:
