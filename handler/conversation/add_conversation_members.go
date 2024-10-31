@@ -34,6 +34,13 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 		}
 		userModels = append(userModels, userModel)
 	}
+	//获取保存badgeCount
+	//保存userModels
+	//再次判断limit，删除成员
+	//拉会话链，获取index起点,设置已读起点
+	//发送进群命令消息
+	//发送挡板消息？
+	//设置minIndex，已读终点
 	return resp, nil
 }
 

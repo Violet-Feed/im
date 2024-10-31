@@ -8,14 +8,17 @@ import (
 )
 
 type RedisService interface {
-	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error
+	Set(ctx context.Context, key string, value string, expiration time.Duration) error
+	BatchSet(ctx context.Context, keys []string, values []string, expiration time.Duration) error
 	Get(ctx context.Context, key string) (string, error)
+	MGet(ctx context.Context, keys []string) ([]interface{}, error)
 	Del(ctx context.Context, key string) error
 	HSet(ctx context.Context, key string, field string, value interface{}) error
 	HGetAll(ctx context.Context, key string) (map[string]string, error)
 	HDel(ctx context.Context, key string, field string) error
 	HExists(ctx context.Context, key string, field string) (bool, error)
 	ZAdd(ctx context.Context, key string, values []redis.Z) error
+	ZRange(ctx context.Context, key string, start, stop int64) ([]string, error)
 	ZCard(ctx context.Context, key string) (int64, error)
 	FlushDB(ctx context.Context) error
 }
@@ -33,10 +36,23 @@ func NewRedisServiceImpl() RedisServiceImpl {
 	return RedisServiceImpl{client: redisClient}
 }
 
-func (r *RedisServiceImpl) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+func (r *RedisServiceImpl) Set(ctx context.Context, key string, value string, expiration time.Duration) error {
 	_, err := r.client.Set(ctx, key, value, expiration).Result()
 	if err != nil {
 		logrus.Errorf("[Set] redis set err. err = %v", err)
+		return err
+	}
+	return nil
+}
+
+func (r *RedisServiceImpl) BatchSet(ctx context.Context, keys []string, values []string, expiration time.Duration) error {
+	pipe := r.client.Pipeline()
+	for i := 0; i < len(keys); i++ {
+		pipe.Set(ctx, keys[i], values[i], expiration)
+	}
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		logrus.Errorf("[BatchSet] redis batch set err. err = %v", err)
 		return err
 	}
 	return nil
@@ -47,6 +63,15 @@ func (r *RedisServiceImpl) Get(ctx context.Context, key string) (string, error) 
 	if err != nil {
 		logrus.Errorf("[Get] redis get err. err = %v", err)
 		return "", err
+	}
+	return res, nil
+}
+
+func (r *RedisServiceImpl) MGet(ctx context.Context, keys []string) ([]interface{}, error) {
+	res, err := r.client.MGet(ctx, keys...).Result()
+	if err != nil {
+		logrus.Errorf("[MGet] redis mget err. err = %v", err)
+		return nil, err
 	}
 	return res, nil
 }
@@ -103,6 +128,15 @@ func (r *RedisServiceImpl) ZAdd(ctx context.Context, key string, values []redis.
 		return err
 	}
 	return nil
+}
+
+func (r *RedisServiceImpl) ZRange(ctx context.Context, key string, start, stop int64) ([]string, error) {
+	res, err := r.client.ZRange(ctx, key, start, stop).Result()
+	if err != nil {
+		logrus.Errorf("[ZRange] redis zrange err. err = %v", err)
+		return nil, err
+	}
+	return res, nil
 }
 
 func (r *RedisServiceImpl) ZCard(ctx context.Context, key string) (int64, error) {

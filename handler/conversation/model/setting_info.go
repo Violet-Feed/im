@@ -31,7 +31,7 @@ func (c *ConversationSettingInfo) TableName() string {
 func InsertSettingInfo(ctx context.Context, setting *ConversationSettingInfo) error {
 	err := dal.MysqlDB.Create(setting).Error
 	if err != nil {
-		logrus.Errorf("mysql insert setting err. err = %v", err)
+		logrus.Errorf("[InsertSettingInfo] mysql insert setting err. err = %v", err)
 		return err
 	}
 	settingByte, err := json.Marshal(setting)

@@ -32,7 +32,7 @@ func (c *ConversationCoreInfo) TableName() string {
 func InsertCoreInfo(ctx context.Context, core *ConversationCoreInfo) error {
 	err := dal.MysqlDB.Create(core).Error
 	if err != nil {
-		logrus.Errorf("mysql insert core err. err = %v", err)
+		logrus.Errorf("[InsertCoreInfo] mysql insert core err. err = %v", err)
 		return err
 	}
 	coreByte, err := json.Marshal(core)

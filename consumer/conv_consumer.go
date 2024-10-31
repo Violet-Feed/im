@@ -3,10 +3,12 @@ package consumer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/sirupsen/logrus"
 	"im/dal/mq"
+	"im/handler/conversation"
 	"im/handler/index"
 	"im/handler/message"
 	"im/proto_gen/im"
@@ -62,7 +64,19 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		messageEvent.ConIndex = appendConversationIndexResponse.ConIndex
 		logrus.Infof("[ConvProcess] AppendConversationIndex sucess. index = %v", messageEvent.GetConIndex())
 	}
-	receivers := getReceivers(ctx, messageEvent)
+	receivers, err := getReceivers(ctx, messageEvent)
+	if err != nil {
+		retryCount := messageEvent.GetRetryCount()
+		if retryCount > 3 {
+			logrus.Errorf("[ConvProcess] retry too much. message = %v", messageEvent)
+			return consumer.ConsumeSuccess, nil
+		}
+		messageEvent.RetryCount = util.Int32(retryCount + 1)
+		err = backoff.Retry(func() error {
+			return mq.SendToMq(ctx, "conversation", strconv.FormatInt(messageEvent.GetMsgBody().GetConShortId(), 10), messageEvent)
+		}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), backoff.Infinite))
+		return consumer.ConsumeSuccess, nil
+	}
 	for _, receiver := range receivers {
 		err := mq.SendToMq(ctx, "user", strconv.FormatInt(receiver, 10), messageEvent)
 		if err != nil {
@@ -73,17 +87,29 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	//->写会话链(inbox_api,V2)->保存消息->(增加thread未读)->写入用户消息队列->与同步MQ互补->失败发送backup队列
 }
 
-func getReceivers(ctx context.Context, event *im.MessageEvent) []int64 {
+func getReceivers(ctx context.Context, event *im.MessageEvent) ([]int64, error) {
 	switch event.GetMsgBody().GetConType() {
 	case int32(im.ConversationType_One_Chat):
 		parts := strings.Split(event.GetMsgBody().GetConId(), ":")
 		minId, _ := strconv.ParseInt(parts[0], 10, 64)
 		maxId, _ := strconv.ParseInt(parts[1], 10, 64)
-		return []int64{minId, maxId}
+		return []int64{minId, maxId}, nil
 	case int32(im.ConversationType_Group_Chat):
-		//TODO 获取群成员
-		return []int64{}
+		getConversationMembersRequest := &im.GetConversationMembersRequest{
+			ConShortId: event.GetMsgBody().ConShortId,
+			OnlyId:     util.Bool(true),
+		}
+		getConversationMembersResponse, err := conversation.GetConversationMembers(ctx, getConversationMembersRequest)
+		if err != nil {
+			logrus.Errorf("[ConvProcess] GetConversationMembers err. err = %v", err)
+			return nil, err
+		}
+		var receivers []int64
+		for _, info := range getConversationMembersResponse.UserInfos {
+			receivers = append(receivers, info.GetUserId())
+		}
+		return receivers, nil
 	default:
-		return []int64{}
+		return nil, errors.New("conversation type invalid")
 	}
 }

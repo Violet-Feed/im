@@ -10,7 +10,7 @@ enum StatusCode{
   Param_Error = 1002;
   Frequency_Error = 1003;
   Limit_Error=1004;
-    Duplicate_Error=1005;
+  Duplicate_Error=1005;
 }
 
 enum ConversationType{
@@ -130,6 +130,19 @@ message ConversationCoreInfo {
   optional string extra=12;
 }
 
+message ConversationUserInfo {
+  optional int64 con_short_id=1;
+  optional int64 user_id=2;
+  optional int32 privilege=3;
+  optional string nick_name=4;
+  optional int64 block_time_stamp=5;
+  optional int64 operator=6;
+  optional int64 create_time=7;
+  optional int64 modify_time=8;
+  optional int32 status=9;
+  optional string extra=10;
+}
+
 message CreateConversationRequest{
   optional string con_id = 1;
   optional int32 con_type = 2;
@@ -144,6 +157,19 @@ message CreateConversationRequest{
 
 message CreateConversationResponse{
   optional ConversationCoreInfo con_info = 1;
+  optional BaseResp baseResp = 255;
+}
+
+message GetConversationMembersRequest{
+  optional int64 con_short_id=1;
+  optional int64 cursor=2;
+  optional int64 limit=3;
+  optional bool only_id=4;
+}
+
+message GetConversationMemberResponse{
+  repeated ConversationUserInfo user_infos=1;
+  optional int64 next_cursor=2;
   optional BaseResp baseResp = 255;
 }
 
