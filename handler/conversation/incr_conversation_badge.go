@@ -16,9 +16,12 @@ import (
 const SleepTime = 5 * time.Millisecond
 
 func IncrConversationBadge(ctx context.Context, req *im.IncrConversationBadgeRequest) (resp *im.IncrConversationBadgeResponse, err error) {
-	resp = &im.IncrConversationBadgeResponse{}
+	resp = &im.IncrConversationBadgeResponse{
+		BaseResp: &im.BaseResp{StatusCode: im.StatusCode_Success},
+	}
 	userId := req.GetUserId()
 	conShortId := req.GetConShortId()
+	//TODO:为什么有userId
 	key := fmt.Sprintf("badge:%d:%d", userId, conShortId)
 	for i := 0; i < 3; i++ {
 		badgeCnt, err := dal.KvrocksServer.Get(ctx, key)
@@ -28,6 +31,7 @@ func IncrConversationBadge(ctx context.Context, req *im.IncrConversationBadgeReq
 			opt, err := dal.KvrocksServer.SetNX(ctx, key, newBadgeCnt)
 			if err != nil {
 				logrus.Errorf("[IncrConversationBadge] kvrocks SetNX err. err = %v", err)
+				resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 				return nil, err
 			}
 			if opt {
@@ -36,6 +40,7 @@ func IncrConversationBadge(ctx context.Context, req *im.IncrConversationBadgeReq
 			}
 		} else if err != nil {
 			logrus.Errorf("[IncrConversationBadge] kvrocks Get err. err = %v", err)
+			resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 			return nil, err
 		} else {
 			badgeCntNum, _ := strconv.ParseInt(badgeCnt, 10, 64)
@@ -44,6 +49,7 @@ func IncrConversationBadge(ctx context.Context, req *im.IncrConversationBadgeReq
 			opt, err := dal.KvrocksServer.Cas(ctx, key, badgeCnt, newBadgeCnt)
 			if err != nil {
 				logrus.Errorf("[IncrConversationBadge] kvrocks Cas err. err = %v", err)
+				resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 				return nil, err
 			}
 			if opt == 1 {

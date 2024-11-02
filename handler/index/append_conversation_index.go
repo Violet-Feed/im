@@ -19,16 +19,19 @@ const (
 )
 
 func AppendConversationIndex(ctx context.Context, req *im.AppendConversationIndexRequest) (resp *im.AppendConversationIndexResponse, err error) {
-	resp = &im.AppendConversationIndexResponse{}
+	resp = &im.AppendConversationIndexResponse{
+		BaseResp: &im.BaseResp{StatusCode: im.StatusCode_Success},
+	}
 	conShortId := req.GetConShortId()
 	messageId := req.GetMsgId()
-	segKey := fmt.Sprintf("convSeg:%d", conShortId)
+	segKey := fmt.Sprintf("conv_segment:%d", conShortId)
 	for i := 0; i < 3; i++ {
 		seg, err := dal.KvrocksServer.Get(ctx, segKey)
 		if errors.Is(err, redis.Nil) {
 			opt, err := dal.KvrocksServer.SetNX(ctx, segKey, "0")
 			if err != nil {
 				logrus.Errorf("[AppendConversationIndex] kvrocks SetNX err. err = %v", err)
+				resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 				return nil, err
 			}
 			if opt {
@@ -37,17 +40,20 @@ func AppendConversationIndex(ctx context.Context, req *im.AppendConversationInde
 				seg, err = dal.KvrocksServer.Get(ctx, segKey)
 				if err != nil {
 					logrus.Errorf("[AppendConversationIndex] kvrocks Get err. err = %v", err)
+					resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 					return nil, err
 				}
 			}
 		} else if err != nil {
 			logrus.Errorf("[AppendConversationIndex] kvrocks Get err. err = %v", err)
+			resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 			return nil, err
 		}
-		indexKey := fmt.Sprintf("convIndex:%d:%s", conShortId, seg)
+		indexKey := fmt.Sprintf("conv_index:%d:%s", conShortId, seg)
 		subIndex, err := dal.KvrocksServer.RPush(ctx, indexKey, []string{strconv.FormatInt(messageId, 10)})
 		if err != nil {
 			logrus.Errorf("[AppendConversationIndex] kvrocks RPush err. err = %v", err)
+			resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 			return nil, err
 		}
 		segment, _ := strconv.ParseInt(seg, 10, 64)
@@ -56,6 +62,7 @@ func AppendConversationIndex(ctx context.Context, req *im.AppendConversationInde
 			opt, err := dal.KvrocksServer.Cas(ctx, segKey, seg, newSeg)
 			if err != nil {
 				logrus.Errorf("[AppendConversationIndex] kvrocks Cas err. err = %v", err)
+				resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 				return nil, err
 			}
 			if opt == 1 {
@@ -70,5 +77,6 @@ func AppendConversationIndex(ctx context.Context, req *im.AppendConversationInde
 		}
 	}
 	err = errors.New("[AppendConversationIndex] err")
+	resp.BaseResp.StatusCode = im.StatusCode_RetryTime_Error
 	return nil, err
 }

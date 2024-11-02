@@ -43,13 +43,14 @@ func GetByInit(c *gin.Context) {
 		c.JSON(http.StatusOK, im.StatusCode_Server_Error)
 		return
 	}
+	conShortIds := pullUserConIndexResponse.GetConShortIds()
 	wg := sync.WaitGroup{}
-	for _, convId := range pullUserConIndexResponse.GetConShortIds() {
+	for _, convShortId := range conShortIds {
 		wg.Add(1)
-		go func(ctx context.Context, convId int64) {
+		go func(ctx context.Context, convShortId int64) {
 			defer wg.Done()
 			pullConversationIndexRequest := &im.PullConversationIndexRequest{
-				ConShortId: util.Int64(convId),
+				ConShortId: util.Int64(convShortId),
 				ConIndex:   util.Int64(math.MaxInt64),
 				Limit:      util.Int64(MsgLimit),
 			}
@@ -59,7 +60,7 @@ func GetByInit(c *gin.Context) {
 				return
 			}
 			getMessageRequest := &im.GetMessagesRequest{
-				ConShortId: util.Int64(convId),
+				ConShortId: util.Int64(convShortId),
 				MsgIds:     pullConversationIndexResponse.MsgIds,
 			}
 			getMessageResponse, err := message.GetMessages(ctx, getMessageRequest)
@@ -68,7 +69,7 @@ func GetByInit(c *gin.Context) {
 				return
 			}
 			getMessageResponse.GetMsgBodies()
-		}(c, convId)
+		}(c, convShortId)
 	}
 	wg.Add(1)
 	go func(ctx context.Context, userId int64) {
@@ -98,8 +99,35 @@ func GetByInit(c *gin.Context) {
 			return
 		}
 		getConversationBadgeResponse.GetBadgeCounts()
-	}(c, pullUserConIndexResponse.GetConShortIds())
-	//TODO:获取会话core,setting,ext,member信息
+	}(c, conShortIds)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		getConversationCoresRequest := &im.GetConversationCoresRequest{
+			ConShortIds: conShortIds,
+		}
+		getConversationCoresResponse, err := conversation.GetConversationCores(c, getConversationCoresRequest)
+		if err != nil {
+			logrus.Errorf("[GetByInit] GetConversationCores err. err = %v", err)
+			return
+		}
+		getConversationCoresResponse.GetCoreInfos()
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		getConversationSettingsRequest := &im.GetConversationSettingsRequest{
+			UserId:      util.Int64(userId),
+			ConShortIds: conShortIds,
+		}
+		getConversationSettingsResponse, err := conversation.GetConversationSettings(c, getConversationSettingsRequest)
+		if err != nil {
+			logrus.Errorf("[GetByInit] GetConversationSettings err. err = %v", err)
+			return
+		}
+		getConversationSettingsResponse.GetSettingInfos()
+	}()
+	//TODO:获取会话member信息
 	wg.Wait()
 	//获取最近会话id(recent_conversation,abase,zset)->拉取会话链(inbox_api,V2)->获取消息内容(message_api)->隐藏撤回消息
 	//->获取会话core,setting信息(im_conversation_api)->获取会话ext信息(conversation_ext)->获取群聊是否是成员,最近成员信息(im_conversation_api)

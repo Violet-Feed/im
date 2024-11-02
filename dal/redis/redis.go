@@ -11,8 +11,9 @@ type RedisService interface {
 	Set(ctx context.Context, key string, value string, expiration time.Duration) error
 	BatchSet(ctx context.Context, keys []string, values []string, expiration time.Duration) error
 	Get(ctx context.Context, key string) (string, error)
-	MGet(ctx context.Context, keys []string) ([]interface{}, error)
+	MGet(ctx context.Context, keys []string) ([]string, error)
 	Del(ctx context.Context, key string) error
+	SetNX(ctx context.Context, key string, value string, expiration time.Duration) (bool, error)
 	HSet(ctx context.Context, key string, field string, value interface{}) error
 	HGetAll(ctx context.Context, key string) (map[string]string, error)
 	HDel(ctx context.Context, key string, field string) error
@@ -67,11 +68,22 @@ func (r *RedisServiceImpl) Get(ctx context.Context, key string) (string, error) 
 	return res, nil
 }
 
-func (r *RedisServiceImpl) MGet(ctx context.Context, keys []string) ([]interface{}, error) {
-	res, err := r.client.MGet(ctx, keys...).Result()
+func (r *RedisServiceImpl) MGet(ctx context.Context, keys []string) ([]string, error) {
+	resInters, err := r.client.MGet(ctx, keys...).Result()
 	if err != nil {
 		logrus.Errorf("[MGet] redis mget err. err = %v", err)
 		return nil, err
+	}
+	var res []string
+	for _, resInter := range resInters {
+		if resInter == nil {
+			res = append(res, "")
+		} else if resStr, ok := resInter.(string); ok {
+			res = append(res, resStr)
+		} else {
+			logrus.Errorf("[MGet] redis assert err. err = %v", err)
+			return nil, err
+		}
 	}
 	return res, nil
 }
@@ -83,6 +95,15 @@ func (r *RedisServiceImpl) Del(ctx context.Context, key string) error {
 		return err
 	}
 	return nil
+}
+
+func (r *RedisServiceImpl) SetNX(ctx context.Context, key string, value string, expiration time.Duration) (bool, error) {
+	res, err := r.client.SetNX(ctx, key, value, expiration).Result()
+	if err != nil {
+		logrus.Errorf("[SetNX] redis set nx. err = %v", err)
+		return false, err
+	}
+	return res, nil
 }
 
 func (r *RedisServiceImpl) HSet(ctx context.Context, key string, field string, value interface{}) error {

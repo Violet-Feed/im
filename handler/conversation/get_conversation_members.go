@@ -28,25 +28,6 @@ func GetConversationMembers(ctx context.Context, req *im.GetConversationMembersR
 		resp.UserInfos = userInfos
 		return resp, nil
 	}
-	//TODO
+	//TODO:not only
 	return resp, nil
-}
-
-func packUserInfo(userModels []*model.ConversationUserInfo) []*im.ConversationUserInfo {
-	var userInfos []*im.ConversationUserInfo
-	for _, model := range userModels {
-		userInfos = append(userInfos, &im.ConversationUserInfo{
-			ConShortId:     util.Int64(model.ConShortId),
-			UserId:         util.Int64(model.UserId),
-			Privilege:      util.Int32(model.Privilege),
-			NickName:       util.String(model.NickName),
-			BlockTimeStamp: util.Int64(model.BlockTimeStamp),
-			Operator:       util.Int64(model.Operator),
-			CreateTime:     util.Int64(model.CreateTime.Unix()),
-			ModifyTime:     util.Int64(model.ModifyTime.Unix()),
-			Status:         util.Int32(model.Status),
-			Extra:          util.String(model.Extra),
-		})
-	}
-	return userInfos
 }

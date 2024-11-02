@@ -13,22 +13,26 @@ import (
 )
 
 func PullUserCmdIndex(ctx context.Context, req *im.PullUserCmdIndexRequest) (resp *im.PullUserCmdIndexResponse, err error) {
-	resp = &im.PullUserCmdIndexResponse{}
+	resp = &im.PullUserCmdIndexResponse{
+		BaseResp: &im.BaseResp{StatusCode: im.StatusCode_Success},
+	}
 	userId := req.GetUserId()
 	userCmdIndex := req.GetUserCmdIndex()
 	limit := req.GetLimit()
-	segKey := fmt.Sprintf("userSeg:%d", userId)
+	segKey := fmt.Sprintf("user_segment:%d", userId)
 	seg, err := dal.KvrocksServer.Get(ctx, segKey)
 	if errors.Is(err, redis.Nil) {
 		return resp, nil
 	} else if err != nil {
 		logrus.Errorf("[PullUserCmdIndex] kvrocks get seg err. err = %v", err)
+		resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 		return nil, err
 	}
-	indexKey := fmt.Sprintf("userCmdIndex:%d:%s", userId, seg)
+	indexKey := fmt.Sprintf("user_cmd_index:%d:%s", userId, seg)
 	length, err := dal.KvrocksServer.LLen(ctx, indexKey)
 	if err != nil {
 		logrus.Errorf("[PullUserCmdIndex] kvrocks llen 1 err. err = %v", err)
+		resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 		return nil, err
 	}
 	segment, _ := strconv.ParseInt(seg, 10, 64)
@@ -40,10 +44,11 @@ func PullUserCmdIndex(ctx context.Context, req *im.PullUserCmdIndexRequest) (res
 	}
 	messageIds := make([]int64, 0)
 	for limit > 0 && segment >= 0 {
-		indexKey = fmt.Sprintf("userCmdIndex:%d:%d", userId, segment)
+		indexKey = fmt.Sprintf("user_cmd_index:%d:%d", userId, segment)
 		length, err = dal.KvrocksServer.LLen(ctx, indexKey)
 		if err != nil {
 			logrus.Errorf("[PullUserCmdIndex] kvrocks llen 2 err. err = %v", err)
+			resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 			return nil, err
 		}
 		if length == 0 && len(messageIds) > 0 {
@@ -59,6 +64,7 @@ func PullUserCmdIndex(ctx context.Context, req *im.PullUserCmdIndexRequest) (res
 		subMessageIds, err := dal.KvrocksServer.LRange(ctx, indexKey, start, stop)
 		if err != nil {
 			logrus.Errorf("[PullUserCmdIndex] kvrocks lrange err. err = %v", err)
+			resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 			return nil, err
 		}
 		for i := len(subMessageIds) - 1; i >= 0; i-- {

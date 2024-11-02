@@ -12,11 +12,13 @@ import (
 )
 
 func PullUserConIndex(ctx context.Context, req *im.PullUserConIndexRequest) (resp *im.PullUserConIndexResponse, err error) {
-	resp = &im.PullUserConIndexResponse{}
+	resp = &im.PullUserConIndexResponse{
+		BaseResp: &im.BaseResp{StatusCode: im.StatusCode_Success},
+	}
 	userId := req.GetUserId()
 	userConIndex := req.GetUserConIndex()
 	limit := req.GetLimit()
-	key := fmt.Sprintf("userConIndex:%d", userId)
+	key := fmt.Sprintf("user_con_index:%d", userId)
 	opt := &redis.ZRangeBy{
 		Min:   "0",
 		Max:   strconv.FormatInt(userConIndex, 10),
@@ -25,6 +27,7 @@ func PullUserConIndex(ctx context.Context, req *im.PullUserConIndexRequest) (res
 	members, err := dal.KvrocksServer.ZRevRangByScoreWithScores(ctx, key, opt)
 	if err != nil {
 		logrus.Errorf("[PullUserConIndex] kvrocks ZRevRangByScoreWithScores err. err = %v", err)
+		resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 		return nil, err
 	}
 	convShortIds := make([]int64, 0)

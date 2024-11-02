@@ -66,8 +66,13 @@ func (k *KvrocksServiceImpl) MGet(ctx context.Context, keys []string) ([]string,
 	}
 	var res []string
 	for _, resInter := range resInters {
-		if resStr, ok := resInter.(string); ok {
+		if resInter == nil {
+			res = append(res, "")
+		} else if resStr, ok := resInter.(string); ok {
 			res = append(res, resStr)
+		} else {
+			logrus.Errorf("kvrocks mget assert err. err = %v", err)
+			return nil, err
 		}
 	}
 	return res, nil

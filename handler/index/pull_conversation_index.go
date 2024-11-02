@@ -13,22 +13,26 @@ import (
 )
 
 func PullConversationIndex(ctx context.Context, req *im.PullConversationIndexRequest) (resp *im.PullConversationIndexResponse, err error) {
-	resp = &im.PullConversationIndexResponse{}
+	resp = &im.PullConversationIndexResponse{
+		BaseResp: &im.BaseResp{StatusCode: im.StatusCode_Success},
+	}
 	conShortId := req.GetConShortId()
 	conIndex := req.GetConIndex()
 	limit := req.GetLimit()
-	segKey := fmt.Sprintf("convSeg:%d", conShortId)
+	segKey := fmt.Sprintf("conv_segment:%d", conShortId)
 	seg, err := dal.KvrocksServer.Get(ctx, segKey)
 	if errors.Is(err, redis.Nil) {
 		return resp, nil
 	} else if err != nil {
 		logrus.Errorf("[PullConversationIndex] kvrocks get seg err. err = %v", err)
+		resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 		return nil, err
 	}
-	indexKey := fmt.Sprintf("convIndex:%d:%s", conShortId, seg)
+	indexKey := fmt.Sprintf("conv_index:%d:%s", conShortId, seg)
 	length, err := dal.KvrocksServer.LLen(ctx, indexKey)
 	if err != nil {
 		logrus.Errorf("[PullConversationIndex] kvrocks llen 1 err. err = %v", err)
+		resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 		return nil, err
 	}
 	segment, _ := strconv.ParseInt(seg, 10, 64)
@@ -40,10 +44,11 @@ func PullConversationIndex(ctx context.Context, req *im.PullConversationIndexReq
 	}
 	messageIds := make([]int64, 0)
 	for limit > 0 && segment >= 0 {
-		indexKey = fmt.Sprintf("convIndex:%d:%d", conShortId, segment)
+		indexKey = fmt.Sprintf("conv_index:%d:%d", conShortId, segment)
 		length, err = dal.KvrocksServer.LLen(ctx, indexKey)
 		if err != nil {
 			logrus.Errorf("[PullConversationIndex] kvrocks llen 2 err. err = %v", err)
+			resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 			return nil, err
 		}
 		if length == 0 && len(messageIds) > 0 {
@@ -59,6 +64,7 @@ func PullConversationIndex(ctx context.Context, req *im.PullConversationIndexReq
 		subMessageIds, err := dal.KvrocksServer.LRange(ctx, indexKey, start, stop)
 		if err != nil {
 			logrus.Errorf("[PullConversationIndex] kvrocks lrange err. err = %v", err)
+			resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 			return nil, err
 		}
 		for i := len(subMessageIds) - 1; i >= 0; i-- {

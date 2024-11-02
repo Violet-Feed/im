@@ -12,13 +12,16 @@ import (
 )
 
 func Push(ctx context.Context, req *im.PushRequest) (resp *im.PushResponse, err error) {
-	resp = &im.PushResponse{}
+	resp = &im.PushResponse{
+		BaseResp: &im.BaseResp{StatusCode: im.StatusCode_Success},
+	}
 	message, _ := json.Marshal(req)
 	userId := req.GetReceiverId()
 	key := fmt.Sprintf("conn:%d", userId)
 	conns, err := dal.RedisServer.HGetAll(ctx, key)
 	if err != nil {
 		logrus.Errorf("[Push] redid HGetAll err. err = %v", err)
+		resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 		return nil, err
 	}
 	for connId, connInfo := range conns {

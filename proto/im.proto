@@ -8,9 +8,10 @@ enum StatusCode{
   Success = 1000;
   Server_Error = 1001;
   Param_Error = 1002;
-  Frequency_Error = 1003;
-  Limit_Error=1004;
+  OverFrequency_Error = 1003;
+  OverLimit_Error=1004;
   Duplicate_Error=1005;
+  RetryTime_Error=1006;
 }
 
 enum ConversationType{
@@ -128,6 +129,21 @@ message ConversationCoreInfo {
   optional int64 modify_time=10;
   optional int32 status=11;
   optional string extra=12;
+  optional int32 member_count=13;
+}
+
+message ConversationSettingInfo{
+  optional int64 user_id=1;
+  optional int64 con_short_id=2;
+  optional string con_id=3;
+  optional int32 con_type=4;
+  optional int64 min_index=5;
+  optional int64 top_time_stamp=6;
+  optional int32 push_status=7;
+  optional int64 modify_time=8;
+  optional string extra=9;
+  optional int64 read_index_end=10;
+  optional int64 read_badge_count=11;
 }
 
 message ConversationUserInfo {
@@ -157,6 +173,25 @@ message CreateConversationRequest{
 
 message CreateConversationResponse{
   optional ConversationCoreInfo con_info = 1;
+  optional BaseResp baseResp = 255;
+}
+
+message GetConversationCoresRequest{
+  repeated int64 con_short_ids=1;
+}
+
+message GetConversationCoresResponse{
+  repeated ConversationCoreInfo core_infos=1;
+  optional BaseResp baseResp = 255;
+}
+
+message GetConversationSettingsRequest{
+  optional int64 user_id=1;
+  repeated int64 con_short_ids=2;
+}
+
+message GetConversationSettingsResponse{
+  repeated ConversationSettingInfo setting_infos=1;
   optional BaseResp baseResp = 255;
 }
 
@@ -202,6 +237,19 @@ message GetConversationBadgesResponse{
   repeated int64 badge_counts = 1;
   optional BaseResp baseResp = 255;
 }
+
+message SetReadInfoRequest{
+  optional int64 user_id=1;
+  optional int64 con_short_id=2;
+  optional int64 read_index_start=3;
+  optional int64 read_index_end=4;
+  optional int64 read_badge_count=5;
+}
+
+message SetReadInfoResponse{
+  optional BaseResp baseResp = 255;
+}
+
 //TODO:index proto
 message AppendConversationIndexRequest{
   optional int64 con_short_id = 1;

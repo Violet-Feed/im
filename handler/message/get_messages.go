@@ -10,7 +10,9 @@ import (
 )
 
 func GetMessages(ctx context.Context, req *im.GetMessagesRequest) (resp *im.GetMessagesResponse, err error) {
-	resp = &im.GetMessagesResponse{}
+	resp = &im.GetMessagesResponse{
+		BaseResp: &im.BaseResp{StatusCode: im.StatusCode_Success},
+	}
 	conShortId := req.GetConShortId()
 	messageIds := req.GetMsgIds()
 	keys := make([]string, len(messageIds))
@@ -20,6 +22,7 @@ func GetMessages(ctx context.Context, req *im.GetMessagesRequest) (resp *im.GetM
 	messages, err := dal.KvrocksServer.MGet(ctx, keys)
 	if err != nil {
 		logrus.Errorf("[GetMessages] kvrocks mget err. err = %v", err)
+		resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 		return nil, err
 	}
 	var messageBodies []*im.MessageBody
@@ -28,6 +31,7 @@ func GetMessages(ctx context.Context, req *im.GetMessagesRequest) (resp *im.GetM
 		err = json.Unmarshal([]byte(message), &messageBody)
 		if err != nil {
 			logrus.Errorf("[GetMessages] unmarshal messageBody err. msg = %v, err = %v", message, err)
+			//TODO
 		} else {
 			messageBodies = append(messageBodies, &messageBody)
 		}

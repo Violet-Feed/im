@@ -23,7 +23,7 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 		return resp, err
 	}
 	if count+len(req.GetMembers()) > ConversationLimit {
-		resp.BaseResp.StatusCode = im.StatusCode_Limit_Error
+		resp.BaseResp.StatusCode = im.StatusCode_OverLimit_Error
 		return resp, nil
 	}
 	var userModels []*model.ConversationUserInfo
@@ -34,6 +34,8 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 		}
 		userModels = append(userModels, userModel)
 	}
+	//TODO:个人认为流程：redis加锁，获取成员数量判断是否超限，存入数据库，发送普通消息，解锁
+	//TODO:入单链，对于新成员设置已读起点终点minIndex，入用户链，对于新成员获取badge设置readBadge
 	//获取保存badgeCount
 	//保存userModels
 	//再次判断limit，删除成员

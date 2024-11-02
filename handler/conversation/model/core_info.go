@@ -6,8 +6,13 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"im/dal"
+	"im/proto_gen/im"
+	"im/util"
+	"strconv"
 	"time"
 )
+
+const CoreInfoExpireTime = 24 * time.Hour
 
 type ConversationCoreInfo struct {
 	Id          int64     `gorm:"column:id" json:"id"`
@@ -23,6 +28,7 @@ type ConversationCoreInfo struct {
 	ModifyTime  time.Time `gorm:"column:modify_time" json:"modify_time"`
 	Status      int32     `gorm:"column:status" json:"status"`
 	Extra       string    `gorm:"column:extra" json:"extra"`
+	MemberCount int32     `gorm:"-" json:"member_count"`
 }
 
 func (c *ConversationCoreInfo) TableName() string {
@@ -41,4 +47,100 @@ func InsertCoreInfo(ctx context.Context, core *ConversationCoreInfo) error {
 		_ = dal.RedisServer.Set(ctx, key, string(coreByte), 1*time.Minute)
 	}
 	return nil
+}
+
+func GetCoreInfos(ctx context.Context, conShortIds []int64) (map[int64]*ConversationCoreInfo, error) {
+	var keys []string
+	var lostIds []int64
+	coresMap := make(map[int64]*ConversationCoreInfo)
+	for _, id := range conShortIds {
+		key := fmt.Sprintf("core:%d", id)
+		keys = append(keys, key)
+	}
+	results, err := dal.RedisServer.MGet(ctx, keys)
+	if err != nil {
+		logrus.Errorf("[GetCoreInfos] redis mget err. err = %v", err)
+		lostIds = conShortIds
+	} else {
+		for i, result := range results {
+			if result != "" {
+				var core *ConversationCoreInfo
+				if err := json.Unmarshal([]byte(result), &core); err != nil {
+					coresMap[core.ConShortId] = core
+					continue
+				}
+			}
+			lostIds = append(lostIds, conShortIds[i])
+		}
+	}
+	if len(lostIds) == 0 {
+		return coresMap, nil
+	}
+	var cores []*ConversationCoreInfo
+	err = dal.MysqlDB.Where("con_short_id in (?)", lostIds).Find(cores).Error
+	if err != nil {
+		logrus.Errorf("[GetCoreInfos] mysql select err. err = %v", err)
+		return nil, err
+	}
+	for _, core := range cores {
+		coresMap[core.ConShortId] = core
+	}
+	go AsyncSetCoreCache(ctx, cores)
+	return coresMap, nil
+}
+
+func AsyncSetCoreCache(ctx context.Context, cores []*ConversationCoreInfo) {
+	var keys, values []string
+	for _, core := range cores {
+		key := fmt.Sprintf("core:%d", core.ConShortId)
+		value, err := json.Marshal(core)
+		if err != nil {
+			keys = append(keys, key)
+			values = append(values, string(value))
+		}
+	}
+	_ = dal.RedisServer.BatchSet(ctx, keys, values, CoreInfoExpireTime)
+}
+
+func PackCoreModel(conShortId int64, req *im.CreateConversationRequest) *ConversationCoreInfo {
+	core := &ConversationCoreInfo{
+		ConShortId:  conShortId,
+		ConId:       req.GetConId(),
+		ConType:     req.GetConType(),
+		Name:        req.GetName(),
+		AvatarUri:   req.GetAvatarUri(),
+		Description: req.GetDescription(),
+		Notice:      req.GetNotice(),
+		OwnerId:     req.GetOwnerId(),
+		Extra:       req.GetExtra(),
+	}
+	if req.GetConType() == int32(im.ConversationType_Group_Chat) {
+		core.ConId = strconv.FormatInt(conShortId, 10)
+	}
+	//TODO:获取req里的time？
+	curTime := time.Now()
+	core.CreateTime = curTime
+	core.ModifyTime = curTime
+	return core
+}
+
+func PackCoreInfo(model *ConversationCoreInfo) *im.ConversationCoreInfo {
+	if model == nil {
+		return nil
+	}
+	core := &im.ConversationCoreInfo{
+		ConShortId:  util.Int64(model.ConShortId),
+		ConId:       util.String(model.ConId),
+		ConType:     util.Int32(model.ConType),
+		Name:        util.String(model.Name),
+		AvatarUri:   util.String(model.AvatarUri),
+		Description: util.String(model.Description),
+		Notice:      util.String(model.Notice),
+		OwnerId:     util.Int64(model.OwnerId),
+		CreateTime:  util.Int64(model.CreateTime.Unix()),
+		ModifyTime:  util.Int64(model.ModifyTime.Unix()),
+		Status:      util.Int32(model.Status),
+		Extra:       util.String(model.Extra),
+	}
+	return core
 }

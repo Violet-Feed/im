@@ -7,6 +7,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"im/dal"
+	"im/proto_gen/im"
+	"im/util"
 	"strconv"
 	"time"
 )
@@ -60,7 +62,7 @@ func InsertUserInfos(ctx context.Context, conShortId int64, users []*Conversatio
 }
 
 func GetUserCount(ctx context.Context, conShortId int64) (int, error) {
-	//本地缓存+redis？
+	//TODO:本地缓存+redis？
 	key := fmt.Sprintf("member:%d", conShortId)
 	count, err := dal.RedisServer.ZCard(ctx, key)
 	if err == nil && count > 0 {
@@ -73,7 +75,7 @@ func GetUserCount(ctx context.Context, conShortId int64) (int, error) {
 		return 0, err
 	}
 	if count == 0 {
-		go SetUserZSetCache(ctx, key, users)
+		go AsyncSetUserZSetCache(ctx, key, users)
 	}
 	return len(users), nil
 }
@@ -106,12 +108,12 @@ func GetUserIdList(ctx context.Context, conShortId int64) ([]int64, error) {
 		userIds = append(userIds, user.Id)
 	}
 	if len(res) == 0 {
-		go SetUserZSetCache(ctx, key, users)
+		go AsyncSetUserZSetCache(ctx, key, users)
 	}
 	return userIds, nil
 }
 
-func SetUserZSetCache(ctx context.Context, key string, users []*ConversationUserInfo) {
+func AsyncSetUserZSetCache(ctx context.Context, key string, users []*ConversationUserInfo) {
 	//TODO:加锁
 	var values []redis.Z
 	for i := 0; i < len(users); i++ {
@@ -121,4 +123,23 @@ func SetUserZSetCache(ctx context.Context, key string, users []*ConversationUser
 		})
 	}
 	_ = dal.RedisServer.ZAdd(ctx, key, values)
+}
+
+func PackUserInfo(userModels []*ConversationUserInfo) []*im.ConversationUserInfo {
+	var userInfos []*im.ConversationUserInfo
+	for _, model := range userModels {
+		userInfos = append(userInfos, &im.ConversationUserInfo{
+			ConShortId:     util.Int64(model.ConShortId),
+			UserId:         util.Int64(model.UserId),
+			Privilege:      util.Int32(model.Privilege),
+			NickName:       util.String(model.NickName),
+			BlockTimeStamp: util.Int64(model.BlockTimeStamp),
+			Operator:       util.Int64(model.Operator),
+			CreateTime:     util.Int64(model.CreateTime.Unix()),
+			ModifyTime:     util.Int64(model.ModifyTime.Unix()),
+			Status:         util.Int32(model.Status),
+			Extra:          util.String(model.Extra),
+		})
+	}
+	return userInfos
 }

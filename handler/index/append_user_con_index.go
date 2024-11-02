@@ -15,16 +15,19 @@ const ConLimit = 1000
 const SleepTime = 5 * time.Millisecond
 
 func AppendUserConIndex(ctx context.Context, req *im.AppendUserConIndexRequest) (resp *im.AppendUserConIndexResponse, err error) {
-	resp = &im.AppendUserConIndexResponse{}
+	resp = &im.AppendUserConIndexResponse{
+		BaseResp: &im.BaseResp{StatusCode: im.StatusCode_Success},
+	}
 	userId := req.GetUserId()
 	conShortId := req.GetConShortId()
-	key := fmt.Sprintf("userConIndex:%d", userId)
+	key := fmt.Sprintf("user_con_index:%d", userId)
 	//TODO:redis锁重试3
 	//dal.RedisServer.Lock()
 	//defer dal.RedisServer.Unlock()
 	lastIndex, err := dal.KvrocksServer.ZRangeWithScores(ctx, key, -1, -1)
 	if err != nil {
 		logrus.Errorf("[AppendUserConIndex] kvrocks ZRangeWithScores err. err = %v", err)
+		resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 		return nil, err
 	}
 	var preUserConIndex float64
@@ -42,6 +45,7 @@ func AppendUserConIndex(ctx context.Context, req *im.AppendUserConIndexRequest) 
 	})
 	if err != nil {
 		logrus.Errorf("[AppendUserConIndex] kvrocks ZAdd err. err = %v", err)
+		resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 		return nil, err
 	}
 	go dal.KvrocksServer.ZRemRangeByRank(ctx, key, 0, -ConLimit)
