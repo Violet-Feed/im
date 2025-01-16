@@ -62,6 +62,22 @@ message MessageGetByInitResponse{
   optional int64 user_cmd_index = 5;    // 初始化后完成从这个位置拉最近会话链。 只有首次请求会返回。
 }
 
+message MessageGetByConversationRequest{
+
+}
+
+message MessageGetByConversationResponse{
+
+}
+
+message MarkReadRequest{
+
+}
+
+message MarkReadResponse{
+
+}
+
 //TODO:message proto
 message MessageBody{
   optional int64 user_id = 1;
