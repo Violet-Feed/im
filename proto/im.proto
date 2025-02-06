@@ -151,15 +151,14 @@ message ConversationCoreInfo {
 message ConversationSettingInfo{
   optional int64 user_id=1;
   optional int64 con_short_id=2;
-  optional string con_id=3;
-  optional int32 con_type=4;
-  optional int64 min_index=5;
-  optional int64 top_time_stamp=6;
-  optional int32 push_status=7;
-  optional int64 modify_time=8;
-  optional string extra=9;
-  optional int64 read_index_end=10;
-  optional int64 read_badge_count=11;
+  optional int32 con_type=3;
+  optional int64 min_index=4;
+  optional int64 top_time_stamp=5;
+  optional int32 push_status=6;
+  optional int64 modify_time=7;
+  optional string extra=8;
+  optional int64 read_index_end=9;
+  optional int64 read_badge_count=10;
 }
 
 message ConversationUserInfo {

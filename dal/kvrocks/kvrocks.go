@@ -29,10 +29,15 @@ type KvrocksServiceImpl struct {
 }
 
 func NewKvrocksServiceImpl() KvrocksServiceImpl {
+	//kvrocksClient := redis.NewClient(&redis.Options{
+	//	Addr:     "127.0.0.1:6666",
+	//	Password: "",
+	//	DB:       0,
+	//})
 	kvrocksClient := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6666",
+		Addr:     "127.0.0.1:6379",
 		Password: "",
-		DB:       0,
+		DB:       1,
 	})
 	return KvrocksServiceImpl{client: kvrocksClient}
 }

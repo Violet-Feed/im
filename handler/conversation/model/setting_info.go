@@ -17,7 +17,6 @@ type ConversationSettingInfo struct {
 	Id             int64     `gorm:"column:id" json:"id"`
 	UserId         int64     `gorm:"column:user_id" json:"user_id"`
 	ConShortId     int64     `gorm:"column:con_short_id" json:"con_short_id"`
-	ConId          string    `gorm:"column:con_id" json:"con_id"`
 	ConType        int32     `gorm:"column:con_type" json:"con_type"`
 	MinIndex       int64     `gorm:"column:min_index" json:"min_index"`
 	TopTimeStamp   int64     `gorm:"column:top_time_stamp" json:"top_time_stamp"`
@@ -74,7 +73,7 @@ func GetSettingInfo(ctx context.Context, userId int64, conShortIds []int64) (map
 		return settingsMap, nil
 	}
 	var settings []*ConversationSettingInfo
-	err = dal.MysqlDB.Where("con_short_id in (?)", lostIds).Find(settings).Error
+	err = dal.MysqlDB.Where("user_id = (?) and con_short_id in (?) ", userId, lostIds).Find(settings).Error
 	if err != nil {
 		logrus.Errorf("[GetSettingInfo] mysql select err. err = %v", err)
 		return nil, err
@@ -103,7 +102,6 @@ func PackSettingModel(userId int64, conShortId int64, req *im.CreateConversation
 	setting := &ConversationSettingInfo{
 		UserId:     userId,
 		ConShortId: conShortId,
-		ConId:      req.GetConId(),
 		ConType:    req.GetConType(),
 		Extra:      req.GetExtra(),
 	}
@@ -119,7 +117,6 @@ func PackSettingInfo(model *ConversationSettingInfo) *im.ConversationSettingInfo
 	setting := &im.ConversationSettingInfo{
 		UserId:       util.Int64(model.UserId),
 		ConShortId:   util.Int64(model.ConShortId),
-		ConId:        util.String(model.ConId),
 		ConType:      util.Int32(model.ConType),
 		MinIndex:     util.Int64(model.MinIndex),
 		TopTimeStamp: util.Int64(model.TopTimeStamp),

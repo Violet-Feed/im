@@ -36,12 +36,12 @@ func main() {
 	go func() {
 		r := gin.Default()
 		r = Router(r)
-		if err := r.Run(":9090"); err != nil {
+		if err := r.Run(":3001"); err != nil {
 			logrus.Fatalf("[main] gin run err. err = %v", err)
 		}
 	}()
 
-	lis, err := net.Listen("tcp", ":9091")
+	lis, err := net.Listen("tcp", ":3011")
 	if err != nil {
 		logrus.Fatalf("[main] grpc listen err. err = %v", err)
 	}

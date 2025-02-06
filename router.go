@@ -10,7 +10,7 @@ import (
 
 func authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.FullPath() == "/ws" {
+		if c.FullPath() == "/api/im/ws" {
 			c.Set("userId", int64(1844310578969968640))
 			c.Next()
 		}
@@ -36,33 +36,36 @@ func authMiddleware() gin.HandlerFunc {
 
 func Router(r *gin.Engine) *gin.Engine {
 	r.Use(authMiddleware())
-	r.GET("/rpc", handler.GetMessage)
-	r.GET("/ws", handler.WebsocketHandler)
+	im := r.Group("/api/im")
+	{
+		im.GET("/rpc", handler.GetMessage)
+		im.GET("/ws", handler.WebsocketHandler)
 
-	message := r.Group("/message")
-	{
-		message.POST("/send", handler.Send)
-		message.POST("/modify")
-		message.POST("/recall")
-		message.POST("/delete")
-		message.POST("/forward")
-		message.POST("/pin")
-		message.POST("/mark_read")
-		message.POST("/get_by_init", handler.GetByInit)
-		message.POST("/get_by_conv", handler.GetByConv)
-		message.POST("/get_by_user", handler.GetByUser)
-	}
-	conversation := r.Group("/conversation")
-	{
-		conversation.POST("/create")
-		conversation.POST("/delete")
-		conversation.POST("/pin")
-		conversation.POST("/get_info")
-		conversation.POST("/modify_info")
-		conversation.POST("/disband")
-		conversation.POST("/join")
-		conversation.POST("/exit")
-		conversation.POST("/share")
+		message := im.Group("/message")
+		{
+			message.POST("/send", handler.Send)
+			message.POST("/modify")
+			message.POST("/recall")
+			message.POST("/delete")
+			message.POST("/forward")
+			message.POST("/pin")
+			message.POST("/mark_read")
+			message.POST("/get_by_init", handler.GetByInit)
+			message.POST("/get_by_conv", handler.GetByConv)
+			message.POST("/get_by_user", handler.GetByUser)
+		}
+		conversation := im.Group("/conversation")
+		{
+			conversation.POST("/create")
+			conversation.POST("/delete")
+			conversation.POST("/pin")
+			conversation.POST("/get_info")
+			conversation.POST("/modify_info")
+			conversation.POST("/disband")
+			conversation.POST("/join")
+			conversation.POST("/exit")
+			conversation.POST("/share")
+		}
 	}
 	return r
 }
