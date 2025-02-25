@@ -30,6 +30,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// TODO:改成select语句
 func WebsocketHandler(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -66,8 +67,24 @@ func WebsocketHandler(c *gin.Context) {
 			exist, err := dal.RedisServer.HExists(c, key, connId)
 			if err == nil && !exist {
 				_ = dal.RedisServer.HSet(c, key, connId, connInfo)
-				_ = conn.WriteMessage(websocket.TextMessage, []byte("need init"))
+				err = conn.WriteMessage(websocket.TextMessage, []byte("need init"))
+				if err != nil {
+					logrus.Warnf("[WebsocketHandler] write message err. err = %v", err)
+					conn.Close()
+				}
 			}
+		}
+	}()
+	heartBeat := time.NewTicker(5 * time.Second)
+	defer heartBeat.Stop()
+	var alive int32
+	go func() {
+		for range heartBeat.C {
+			if alive == -3 {
+				logrus.Warnf("[WebsocketHandler] heartbeat timeout.")
+				conn.Close()
+			}
+			alive--
 		}
 	}()
 	for {
@@ -76,11 +93,10 @@ func WebsocketHandler(c *gin.Context) {
 			logrus.Warnf("[WebsocketHandler] read message err. err = %v", err)
 			return
 		}
-		logrus.Infof("[WebsocketHandler] receive message. messageType = %v, message = %v", messageType, message)
-
+		logrus.Infof("[WebsocketHandler] receive message. messageType = %v, message = %v", messageType, string(message))
 		switch string(message) {
 		case "ping":
-			err = conn.WriteMessage(websocket.TextMessage, []byte("pong"))
+			alive = 0
 		default:
 			err = conn.WriteMessage(websocket.TextMessage, []byte("invalid message"))
 		}

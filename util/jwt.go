@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const JWT_KEY = "SDFGjhdsfalshdfHFdsjkdsfds126232131afasdfac"
+const JWT_KEY = "SDFGjhdsfalshdfHFdsjkdsfds121232131afasdfac"
 const JWT_TTL = time.Hour * 24 * 14
 
 func GenerateUserToken(userId int64) (string, error) {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+	"runtime"
 	"time"
 )
 
@@ -29,15 +30,18 @@ type KvrocksServiceImpl struct {
 }
 
 func NewKvrocksServiceImpl() KvrocksServiceImpl {
-	//kvrocksClient := redis.NewClient(&redis.Options{
-	//	Addr:     "127.0.0.1:6666",
-	//	Password: "",
-	//	DB:       0,
-	//})
+	if runtime.GOOS == "windows" {
+		kvrocksClient := redis.NewClient(&redis.Options{
+			Addr:     "127.0.0.1:6379",
+			Password: "",
+			DB:       1,
+		})
+		return KvrocksServiceImpl{client: kvrocksClient}
+	}
 	kvrocksClient := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
+		Addr:     "127.0.0.1:6666",
 		Password: "",
-		DB:       1,
+		DB:       0,
 	})
 	return KvrocksServiceImpl{client: kvrocksClient}
 }
@@ -93,10 +97,27 @@ func (k *KvrocksServiceImpl) SetNX(ctx context.Context, key string, value string
 }
 
 func (k *KvrocksServiceImpl) Cas(ctx context.Context, key string, oldValue string, newValue string) (int64, error) {
+	if runtime.GOOS == "windows" {
+		locked, err := k.client.SetNX(ctx, "lock:"+key, "lock", 1*time.Second).Result()
+		defer k.client.Del(ctx, "lock:"+key)
+		if err != nil {
+			logrus.Errorf("kvrocks cas lock err. err = %v", err)
+			return 0, err
+		}
+		if !locked {
+			return 0, nil
+		}
+		_, err = k.client.Set(ctx, key, newValue, 0).Result()
+		if err != nil {
+			logrus.Errorf("kvrocks cas set err. err = %v", err)
+			return 0, err
+		}
+		return 1, nil
+	}
 	res, err := k.client.Do(ctx, "cas", key, oldValue, newValue).Result()
 	if err != nil {
 		logrus.Errorf("kvrocks cas err. err = %v", err)
-		return res.(int64), err
+		return 0, err
 	}
 	return res.(int64), nil
 }
