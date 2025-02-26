@@ -8,10 +8,42 @@ import (
 	"strings"
 )
 
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+		if origin != "" {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+		headers := c.GetHeader("Access-Control-Request-Headers")
+		if headers != "" {
+			c.Writer.Header().Set("Access-Control-Allow-Headers", headers)
+			c.Writer.Header().Set("Access-Control-Expose-Headers", headers)
+		}
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "*")
+		c.Writer.Header().Set("Access-Control-Max-Age", "3600")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		c.Next()
+	}
+}
+
 func authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.FullPath() == "/api/im/ws" {
-			c.Set("userId", int64(1844310578969968640))
+		if len(c.Request.URL.Path) >= len("/api/im/ws") && c.Request.URL.Path[:len("/api/im/ws")] == "/api/im/ws" {
+			token := c.Query("token")
+			if token == "" {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden: Missing token"})
+				return
+			}
+			userId, err := util.ParseUserToken(token)
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden: Invalid token"})
+				return
+			}
+			c.Set("userId", userId)
 			c.Next()
 		}
 		token := c.GetHeader("Authorization")
@@ -35,6 +67,7 @@ func authMiddleware() gin.HandlerFunc {
 }
 
 func Router(r *gin.Engine) *gin.Engine {
+	r.Use(corsMiddleware())
 	r.Use(authMiddleware())
 	im := r.Group("/api/im")
 	{

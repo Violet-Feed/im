@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"im/handler/message"
 	"im/proto_gen/im"
 	"im/util"
@@ -10,6 +11,22 @@ import (
 
 func checkMessageSendRequest(c *gin.Context, req *im.MessageSendRequest) bool {
 	//TODO：参数校验
+	if req.GetConId() == "" {
+		logrus.Info("ConId is empty")
+		return false
+	}
+	if req.GetConType() < 1 || req.GetConType() > 5 {
+		logrus.Info("ConType is invalid")
+		return false
+	}
+	if req.GetMsgType() < 1 || req.GetMsgType() > 5 && req.GetMsgType() != 1000 {
+		logrus.Info("MsgType is invalid")
+		return false
+	}
+	if req.GetMsgContent() == "" {
+		logrus.Info("MsgContent is empty")
+		return false
+	}
 	return true
 }
 
