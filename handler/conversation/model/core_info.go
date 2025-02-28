@@ -51,7 +51,7 @@ func InsertCoreInfo(ctx context.Context, core *ConversationCoreInfo) error {
 
 func GetCoreInfos(ctx context.Context, conShortIds []int64) (map[int64]*ConversationCoreInfo, error) {
 	var keys []string
-	var lostIds []int64
+	var missIds []int64
 	coresMap := make(map[int64]*ConversationCoreInfo)
 	for _, id := range conShortIds {
 		key := fmt.Sprintf("core:%d", id)
@@ -60,7 +60,7 @@ func GetCoreInfos(ctx context.Context, conShortIds []int64) (map[int64]*Conversa
 	results, err := dal.RedisServer.MGet(ctx, keys)
 	if err != nil {
 		logrus.Errorf("[GetCoreInfos] redis mget err. err = %v", err)
-		lostIds = conShortIds
+		missIds = conShortIds
 	} else {
 		for i, result := range results {
 			if result != "" {
@@ -70,14 +70,14 @@ func GetCoreInfos(ctx context.Context, conShortIds []int64) (map[int64]*Conversa
 					continue
 				}
 			}
-			lostIds = append(lostIds, conShortIds[i])
+			missIds = append(missIds, conShortIds[i])
 		}
 	}
-	if len(lostIds) == 0 {
+	if len(missIds) == 0 {
 		return coresMap, nil
 	}
 	var cores []*ConversationCoreInfo
-	err = dal.MysqlDB.Where("con_short_id in (?)", lostIds).Find(cores).Error
+	err = dal.MysqlDB.Where("con_short_id in (?)", missIds).Find(cores).Error
 	if err != nil {
 		logrus.Errorf("[GetCoreInfos] mysql select err. err = %v", err)
 		return nil, err
@@ -87,6 +87,16 @@ func GetCoreInfos(ctx context.Context, conShortIds []int64) (map[int64]*Conversa
 	}
 	go AsyncSetCoreCache(ctx, cores)
 	return coresMap, nil
+}
+
+func GetCoreInfoByConId(ctx context.Context, conId string) (*ConversationCoreInfo, error) {
+	var core *ConversationCoreInfo
+	err := dal.MysqlDB.Where("con_id = ?", conId).First(&core).Error
+	if err != nil {
+		logrus.Errorf("[GetCoreInfoByConId] mysql select err. err = %v", err)
+		return nil, err
+	}
+	return core, nil
 }
 
 func AsyncSetCoreCache(ctx context.Context, cores []*ConversationCoreInfo) {

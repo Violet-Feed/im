@@ -19,7 +19,7 @@ func checkMessageSendRequest(c *gin.Context, req *im.MessageSendRequest) bool {
 		logrus.Info("ConType is invalid")
 		return false
 	}
-	if req.GetMsgType() < 1 || req.GetMsgType() > 5 && req.GetMsgType() != 1000 {
+	if req.GetMsgType() < 1 || req.GetMsgType() > 5 && req.GetMsgType() != 1000 && req.GetMsgType() != 1001 {
 		logrus.Info("MsgType is invalid")
 		return false
 	}

@@ -17,6 +17,7 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 		BaseResp: &im.BaseResp{StatusCode: im.StatusCode_Success},
 	}
 	messageId := util.MsgIdGenerator.Generate().Int64()
+	//TODO:是否群成员
 	if req.GetConType() == int32(im.ConversationType_One_Chat) && req.GetConShortId() == 0 { //创建会话
 		parts := strings.Split(req.GetConId(), ":")
 		minId, _ := strconv.ParseInt(parts[0], 10, 64)

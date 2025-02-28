@@ -21,7 +21,6 @@ func IncrConversationBadge(ctx context.Context, req *im.IncrConversationBadgeReq
 	}
 	userId := req.GetUserId()
 	conShortId := req.GetConShortId()
-	//TODO:为什么有userId
 	key := fmt.Sprintf("badge:%d:%d", userId, conShortId)
 	for i := 0; i < 3; i++ {
 		badgeCnt, err := dal.KvrocksServer.Get(ctx, key)

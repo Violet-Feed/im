@@ -11,6 +11,7 @@ import (
 
 type KvrocksService interface {
 	Set(ctx context.Context, key string, value string) error
+	MSet(ctx context.Context, values map[string]string) error
 	Get(ctx context.Context, key string) (string, error)
 	MGet(ctx context.Context, keys []string) ([]string, error)
 	SetNX(ctx context.Context, key string, value string) (bool, error)
@@ -50,6 +51,15 @@ func (k *KvrocksServiceImpl) Set(ctx context.Context, key string, value string) 
 	_, err := k.client.Set(ctx, key, value, 0).Result()
 	if err != nil {
 		logrus.Errorf("kvrocks set err. err = %v", err)
+		return err
+	}
+	return nil
+}
+
+func (k *KvrocksServiceImpl) MSet(ctx context.Context, values map[string]string) error {
+	_, err := k.client.MSet(ctx, values).Result()
+	if err != nil {
+		logrus.Errorf("[MSet] redis mset err. err = %v", err)
 		return err
 	}
 	return nil
@@ -98,7 +108,7 @@ func (k *KvrocksServiceImpl) SetNX(ctx context.Context, key string, value string
 
 func (k *KvrocksServiceImpl) Cas(ctx context.Context, key string, oldValue string, newValue string) (int64, error) {
 	if runtime.GOOS == "windows" {
-		locked, err := k.client.SetNX(ctx, "lock:"+key, "lock", 1*time.Second).Result()
+		locked, err := k.client.SetNX(ctx, "lock:"+key, "1", 1*time.Second).Result()
 		defer k.client.Del(ctx, "lock:"+key)
 		if err != nil {
 			logrus.Errorf("kvrocks cas lock err. err = %v", err)

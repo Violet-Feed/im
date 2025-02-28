@@ -43,6 +43,7 @@ func PullConversationIndex(ctx context.Context, req *im.PullConversationIndexReq
 		segment = conIndex / SegmentLimit
 	}
 	messageIds := make([]int64, 0)
+	//反向拉链
 	for limit > 0 && segment >= 0 {
 		indexKey = fmt.Sprintf("conv_index:%d:%d", conShortId, segment)
 		length, err = dal.KvrocksServer.LLen(ctx, indexKey)

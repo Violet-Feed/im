@@ -12,6 +12,7 @@ enum StatusCode{
   OverLimit_Error=1004;
   Duplicate_Error=1005;
   RetryTime_Error=1006;
+  Not_Found_Error=1007;
 }
 
 enum ConversationType{
@@ -30,6 +31,20 @@ enum MessageType{
   Video = 3;
   Forward = 4;
   Cmd = 1000;
+  SpecialCmd=1001;
+}
+
+enum CommandType{
+  CommandType_Not_Use = 0;
+}
+
+enum SpecialCommandType{
+  SpecialCommandType_Not_Use = 0;
+  Create_Conversation = 1;
+  Disband_Conversation = 2;
+  Update_Conversation = 3;
+  Add_Members = 4;
+  Remove_Members = 5;
 }
 
 message BaseResp{
@@ -225,8 +240,9 @@ message GetConversationMemberResponse{
 
 message AddConversationMembersRequest{
   optional int64 con_short_id=1;
-  repeated int64 members=2;
-  optional int64 operator=3;
+  optional string con_id=2;
+  repeated int64 members=3;
+  optional int64 operator=4;
 }
 
 message AddConversationMembersResponse{

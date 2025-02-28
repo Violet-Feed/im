@@ -19,8 +19,11 @@ type RedisService interface {
 	HDel(ctx context.Context, key string, field string) error
 	HExists(ctx context.Context, key string, field string) (bool, error)
 	ZAdd(ctx context.Context, key string, values []redis.Z) error
+	ZScore(ctx context.Context, key string, member string) (float64, error)
 	ZRange(ctx context.Context, key string, start, stop int64) ([]string, error)
 	ZCard(ctx context.Context, key string) (int64, error)
+	Lock(ctx context.Context, key string) bool
+	Unlock(ctx context.Context, key string)
 	FlushDB(ctx context.Context) error
 }
 
@@ -151,6 +154,15 @@ func (r *RedisServiceImpl) ZAdd(ctx context.Context, key string, values []redis.
 	return nil
 }
 
+func (r *RedisServiceImpl) ZScore(ctx context.Context, key string, member string) (float64, error) {
+	res, err := r.client.ZScore(ctx, key, member).Result()
+	if err != nil {
+		logrus.Errorf("[ZScore] redis zscore err. err = %v", err)
+		return 0, err
+	}
+	return res, nil
+}
+
 func (r *RedisServiceImpl) ZRange(ctx context.Context, key string, start, stop int64) ([]string, error) {
 	res, err := r.client.ZRange(ctx, key, start, stop).Result()
 	if err != nil {
@@ -167,6 +179,26 @@ func (r *RedisServiceImpl) ZCard(ctx context.Context, key string) (int64, error)
 		return 0, err
 	}
 	return res, nil
+}
+
+func (r *RedisServiceImpl) Lock(ctx context.Context, key string) bool {
+	retry := 0
+	for {
+		res, err := r.client.SetNX(ctx, "lock:"+key, "1", 1*time.Second).Result()
+		if err == nil && res {
+			return true
+		}
+		retry++
+		if retry > 3 {
+			return false
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+func (r *RedisServiceImpl) Unlock(ctx context.Context, key string) {
+	_, _ = r.client.Del(ctx, "lock:"+key).Result()
+	return
 }
 
 func (r *RedisServiceImpl) FlushDB(ctx context.Context) error {

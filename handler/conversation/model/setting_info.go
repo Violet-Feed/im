@@ -3,11 +3,14 @@ package model
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"im/dal"
+	"im/handler/conversation"
 	"im/proto_gen/im"
 	"im/util"
+	"strconv"
 	"time"
 )
 
@@ -47,7 +50,7 @@ func InsertSettingInfo(ctx context.Context, setting *ConversationSettingInfo) er
 
 func GetSettingInfo(ctx context.Context, userId int64, conShortIds []int64) (map[int64]*ConversationSettingInfo, error) {
 	var keys []string
-	var lostIds []int64
+	var missIds []int64
 	settingsMap := make(map[int64]*ConversationSettingInfo)
 	for _, id := range conShortIds {
 		key := fmt.Sprintf("setting:%d:%d", userId, id)
@@ -56,7 +59,7 @@ func GetSettingInfo(ctx context.Context, userId int64, conShortIds []int64) (map
 	results, err := dal.RedisServer.MGet(ctx, keys)
 	if err != nil {
 		logrus.Errorf("[GetSettingInfo] redis mget err. err = %v", err)
-		lostIds = conShortIds
+		missIds = conShortIds
 	} else {
 		for i, result := range results {
 			if result != "" {
@@ -66,14 +69,14 @@ func GetSettingInfo(ctx context.Context, userId int64, conShortIds []int64) (map
 					continue
 				}
 			}
-			lostIds = append(lostIds, conShortIds[i])
+			missIds = append(missIds, conShortIds[i])
 		}
 	}
-	if len(lostIds) == 0 {
+	if len(missIds) == 0 {
 		return settingsMap, nil
 	}
 	var settings []*ConversationSettingInfo
-	err = dal.MysqlDB.Where("user_id = (?) and con_short_id in (?) ", userId, lostIds).Find(settings).Error
+	err = dal.MysqlDB.Where("user_id = (?) and con_short_id in (?) ", userId, missIds).Find(settings).Error
 	if err != nil {
 		logrus.Errorf("[GetSettingInfo] mysql select err. err = %v", err)
 		return nil, err
@@ -125,4 +128,135 @@ func PackSettingInfo(model *ConversationSettingInfo) *im.ConversationSettingInfo
 		Extra:        util.String(model.Extra),
 	}
 	return setting
+}
+
+func FixSettingModel(ctx context.Context, userId int64, conShortId int64) (*ConversationSettingInfo, error) {
+	resp, err := conversation.GetConversationCores(ctx, &im.GetConversationCoresRequest{ConShortIds: []int64{conShortId}})
+	if err != nil {
+		logrus.Errorf("[FixSettingModel] GetConversationCores err. err = %v", err)
+		return nil, err
+	}
+	if len(resp.CoreInfos) == 0 {
+		return nil, errors.New("conversation not found")
+	}
+	setting := &ConversationSettingInfo{
+		UserId:     userId,
+		ConShortId: conShortId,
+		ConType:    resp.CoreInfos[0].GetConType(),
+		Extra:      resp.CoreInfos[0].GetExtra(),
+	}
+	curTime := time.Now()
+	setting.ModifyTime = curTime
+	return setting, nil
+}
+
+func SetReadIndexStart(ctx context.Context, conShortId int64, userIds []int64, index int64) error {
+	var values map[string]string
+	for _, userId := range userIds {
+		key := fmt.Sprintf("read_start:%d:%d", userId, conShortId)
+		values[key] = strconv.FormatInt(index, 10)
+	}
+	err := dal.KvrocksServer.MSet(ctx, values)
+	if err != nil {
+		logrus.Errorf("[SetReadIndexStart] kvrocks mset err. err = %v", err)
+		return err
+	}
+	return nil
+}
+
+func GetReadIndexStart(ctx context.Context, conShortIds []int64, userId int64) (map[int64]int64, error) {
+	var keys []string
+	for _, conShortId := range conShortIds {
+		key := fmt.Sprintf("read_start:%d:%d", userId, conShortId)
+		keys = append(keys, key)
+	}
+	results, err := dal.KvrocksServer.MGet(ctx, keys)
+	if err != nil {
+		logrus.Errorf("[GetReadIndexStart] kvrocks mget err. err = %v", err)
+		return nil, err
+	}
+	indexMap := make(map[int64]int64)
+	for i, conShortId := range conShortIds {
+		if results[i] != "" {
+			readIndex, _ := strconv.ParseInt(results[i], 10, 64)
+			indexMap[conShortId] = readIndex
+		} else {
+			indexMap[conShortId] = 0
+		}
+	}
+	return indexMap, nil
+}
+
+func SetReadIndexEnd(ctx context.Context, conShortId int64, userIds []int64, index int64) error {
+	var values map[string]string
+	for _, userId := range userIds {
+		key := fmt.Sprintf("read_end:%d:%d", userId, conShortId)
+		values[key] = strconv.FormatInt(index, 10)
+	}
+	err := dal.KvrocksServer.MSet(ctx, values)
+	if err != nil {
+		logrus.Errorf("[SetReadIndexEnd] kvrocks mset err. err = %v", err)
+		return err
+	}
+	return nil
+}
+
+func GetReadIndexEnd(ctx context.Context, conShortIds []int64, userId int64) (map[int64]int64, error) {
+	var keys []string
+	for _, conShortId := range conShortIds {
+		key := fmt.Sprintf("read_end:%d:%d", userId, conShortId)
+		keys = append(keys, key)
+	}
+	results, err := dal.KvrocksServer.MGet(ctx, keys)
+	if err != nil {
+		logrus.Errorf("[GetReadIndexEnd] kvrocks mget err. err = %v", err)
+		return nil, err
+	}
+	indexMap := make(map[int64]int64)
+	for i, conShortId := range conShortIds {
+		if results[i] != "" {
+			readIndex, _ := strconv.ParseInt(results[i], 10, 64)
+			indexMap[conShortId] = readIndex
+		} else {
+			indexMap[conShortId] = 0
+		}
+	}
+	return indexMap, nil
+}
+
+func SetReadBadge(ctx context.Context, conShortId int64, userIds []int64, count int64) error {
+	var values map[string]string
+	for _, userId := range userIds {
+		key := fmt.Sprintf("read_badge:%d:%d", userId, conShortId)
+		values[key] = strconv.FormatInt(count, 10)
+	}
+	err := dal.KvrocksServer.MSet(ctx, values)
+	if err != nil {
+		logrus.Errorf("[SetReadBadge] kvrocks mset err. err = %v", err)
+		return err
+	}
+	return nil
+}
+
+func GetReadBadge(ctx context.Context, conShortIds []int64, userId int64) (map[int64]int64, error) {
+	var keys []string
+	for _, conShortId := range conShortIds {
+		key := fmt.Sprintf("read_badge:%d:%d", userId, conShortId)
+		keys = append(keys, key)
+	}
+	results, err := dal.KvrocksServer.MGet(ctx, keys)
+	if err != nil {
+		logrus.Errorf("[GetReadBadge] kvrocks mget err. err = %v", err)
+		return nil, err
+	}
+	countMap := make(map[int64]int64)
+	for i, conShortId := range conShortIds {
+		if results[i] != "" {
+			readIndex, _ := strconv.ParseInt(results[i], 10, 64)
+			countMap[conShortId] = readIndex
+		} else {
+			countMap[conShortId] = 0
+		}
+	}
+	return countMap, nil
 }

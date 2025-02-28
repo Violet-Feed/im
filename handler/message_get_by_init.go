@@ -28,6 +28,7 @@ func GetByInit(c *gin.Context) {
 	}
 	userIdStr, _ := c.Get("userId")
 	userId := userIdStr.(int64)
+	//拉取用户会话链
 	userConIndex := req.GetUserConIndex()
 	if userConIndex == 0 {
 		userConIndex = math.MaxInt64
@@ -44,6 +45,7 @@ func GetByInit(c *gin.Context) {
 		return
 	}
 	conShortIds := pullUserConIndexResponse.GetConShortIds()
+	//拉取会话链
 	wg := sync.WaitGroup{}
 	for _, convShortId := range conShortIds {
 		wg.Add(1)
@@ -71,6 +73,7 @@ func GetByInit(c *gin.Context) {
 			getMessageResponse.GetMsgBodies()
 		}(c, convShortId)
 	}
+	//获取用户命令链index
 	wg.Add(1)
 	go func(ctx context.Context, userId int64) {
 		defer wg.Done()
@@ -86,6 +89,7 @@ func GetByInit(c *gin.Context) {
 		}
 		pullUserCmdIndexResponse.GetLastUserCmdIndex()
 	}(c, userId)
+	//获取会话badge
 	wg.Add(1)
 	go func(ctx context.Context, convIds []int64) {
 		defer wg.Done()
@@ -100,6 +104,7 @@ func GetByInit(c *gin.Context) {
 		}
 		getConversationBadgeResponse.GetBadgeCounts()
 	}(c, conShortIds)
+	//获取会话core
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -113,6 +118,7 @@ func GetByInit(c *gin.Context) {
 		}
 		getConversationCoresResponse.GetCoreInfos()
 	}()
+	//获取会话setting
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -128,6 +134,27 @@ func GetByInit(c *gin.Context) {
 		getConversationSettingsResponse.GetSettingInfos()
 	}()
 	//TODO:获取会话member信息
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		status, err := conversation.IsConversationMembers(c, conShortIds, userId)
+		if err != nil {
+			logrus.Errorf("[GetByInit] IsConversationMembers err. err = %v", err)
+			return
+		}
+		logrus.Info(status)
+	}()
+	//获取最近user_infos
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		userInfos, err := conversation.GetConversationUsers(c, 0, []int64{0})
+		if err != nil {
+			logrus.Errorf("[GetByInit] GetConversationUsers err. err = %v", err)
+			return
+		}
+		logrus.Info(userInfos)
+	}()
 	wg.Wait()
 	//获取最近会话id(recent_conversation,abase,zset)->拉取会话链(inbox_api,V2)->获取消息内容(message_api)->隐藏撤回消息
 	//->获取会话core,setting信息(im_conversation_api)->获取会话ext信息(conversation_ext)->获取群聊是否是成员,最近成员信息(im_conversation_api)

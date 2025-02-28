@@ -5,6 +5,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"im/handler/conversation/model"
 	"im/proto_gen/im"
+	"im/util"
+	"sync"
 )
 
 func GetConversationCores(ctx context.Context, req *im.GetConversationCoresRequest) (resp *im.GetConversationCoresResponse, err error) {
@@ -21,10 +23,26 @@ func GetConversationCores(ctx context.Context, req *im.GetConversationCoresReque
 	for _, id := range req.GetConShortIds() {
 		coreInfos = append(coreInfos, model.PackCoreInfo(coresMap[id]))
 	}
-	resp.CoreInfos = coreInfos
 	//TODO:所有群聊成员数量，badge？
+	wg := sync.WaitGroup{}
+	badgeChan := make([]chan int, len(req.GetConShortIds()))
+	for i, conShortId := range req.GetConShortIds() {
+		wg.Add(1)
+		go func(i int, conShortId int64) {
+			defer wg.Done()
+			count, err := model.GetUserCount(ctx, conShortId)
+			if err != nil {
+				logrus.Errorf("[GetConversationCores] GetUserCount err. err = %v", err)
+			}
+			badgeChan[i] <- count
+		}(i, conShortId)
+	}
+	wg.Wait()
+	for i := 0; i < len(req.GetConShortIds()); i++ {
+		coreInfos[i].MemberCount = util.Int32(int32(<-badgeChan[i]))
+	}
+	resp.CoreInfos = coreInfos
 	return resp, nil
-	//convIds
 	//redis mget key:convId,mysql,redis一天
 	//并发获取成员数量：useCache:本地缓存key:convId,get,redis get;nil or noUse:redis key:convId,zcard;nil mysql 设置string一分钟,zset永久
 }
