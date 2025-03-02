@@ -2,10 +2,12 @@ package conversation
 
 import (
 	"context"
+	"errors"
 	"github.com/sirupsen/logrus"
-	"im/handler/conversation/model"
+	"im/biz/model"
 	"im/proto_gen/im"
 	"im/util"
+	"time"
 )
 
 func GetConversationSettings(ctx context.Context, req *im.GetConversationSettingsRequest) (resp *im.GetConversationSettingsResponse, err error) {
@@ -22,7 +24,7 @@ func GetConversationSettings(ctx context.Context, req *im.GetConversationSetting
 	for _, id := range req.GetConShortIds() {
 		if settingModel[id] == nil {
 			//TODO:补齐
-			settingModel[id], err = model.FixSettingModel(ctx, req.GetUserId(), id)
+			settingModel[id], err = fixSettingModel(ctx, req.GetUserId(), id)
 			if err != nil {
 				logrus.Errorf("[GetConversationSettings] FixSettingModel err. err = %v", err)
 			} else {
@@ -64,4 +66,24 @@ func GetConversationSettings(ctx context.Context, req *im.GetConversationSetting
 	//redis mget key；convId:userId,mysql,5小时
 	//补齐，获取core，并发：判断是否成员，设置默认setting
 	//获取readIndex、readBadge，abase mget，key；convId:userId
+}
+
+func fixSettingModel(ctx context.Context, userId int64, conShortId int64) (*model.ConversationSettingInfo, error) {
+	resp, err := GetConversationCores(ctx, &im.GetConversationCoresRequest{ConShortIds: []int64{conShortId}})
+	if err != nil {
+		logrus.Errorf("[FixSettingModel] GetConversationCores err. err = %v", err)
+		return nil, err
+	}
+	if len(resp.CoreInfos) == 0 {
+		return nil, errors.New("conversation not found")
+	}
+	setting := &model.ConversationSettingInfo{
+		UserId:     userId,
+		ConShortId: conShortId,
+		ConType:    resp.CoreInfos[0].GetConType(),
+		Extra:      resp.CoreInfos[0].GetExtra(),
+	}
+	curTime := time.Now()
+	setting.ModifyTime = curTime
+	return setting, nil
 }

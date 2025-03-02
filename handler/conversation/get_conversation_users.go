@@ -3,7 +3,7 @@ package conversation
 import (
 	"context"
 	"github.com/sirupsen/logrus"
-	"im/handler/conversation/model"
+	"im/biz/model"
 	"im/proto_gen/im"
 )
 

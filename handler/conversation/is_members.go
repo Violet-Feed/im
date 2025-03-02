@@ -4,8 +4,8 @@ import (
 	"context"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+	"im/biz/model"
 	"im/dal"
-	"im/handler/conversation/model"
 	"strconv"
 	"sync"
 )

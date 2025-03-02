@@ -3,7 +3,7 @@ package conversation
 import (
 	"context"
 	"github.com/sirupsen/logrus"
-	"im/handler/conversation/model"
+	model2 "im/biz/model"
 	"im/proto_gen/im"
 	"im/util"
 	"sync"
@@ -13,7 +13,7 @@ func GetConversationCores(ctx context.Context, req *im.GetConversationCoresReque
 	resp = &im.GetConversationCoresResponse{
 		BaseResp: &im.BaseResp{StatusCode: im.StatusCode_Success},
 	}
-	coresMap, err := model.GetCoreInfos(ctx, req.GetConShortIds())
+	coresMap, err := model2.GetCoreInfos(ctx, req.GetConShortIds())
 	if err != nil {
 		logrus.Errorf("[GetConversationCores] GetCoreInfos err. err = %v", err)
 		resp.BaseResp.StatusCode = im.StatusCode_Server_Error
@@ -21,7 +21,7 @@ func GetConversationCores(ctx context.Context, req *im.GetConversationCoresReque
 	}
 	var coreInfos []*im.ConversationCoreInfo
 	for _, id := range req.GetConShortIds() {
-		coreInfos = append(coreInfos, model.PackCoreInfo(coresMap[id]))
+		coreInfos = append(coreInfos, model2.PackCoreInfo(coresMap[id]))
 	}
 	//TODO:所有群聊成员数量，badge？
 	wg := sync.WaitGroup{}
@@ -30,7 +30,7 @@ func GetConversationCores(ctx context.Context, req *im.GetConversationCoresReque
 		wg.Add(1)
 		go func(i int, conShortId int64) {
 			defer wg.Done()
-			count, err := model.GetUserCount(ctx, conShortId)
+			count, err := model2.GetUserCount(ctx, conShortId)
 			if err != nil {
 				logrus.Errorf("[GetConversationCores] GetUserCount err. err = %v", err)
 			}

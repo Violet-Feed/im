@@ -3,11 +3,9 @@ package model
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"im/dal"
-	"im/handler/conversation"
 	"im/proto_gen/im"
 	"im/util"
 	"strconv"
@@ -128,26 +126,6 @@ func PackSettingInfo(model *ConversationSettingInfo) *im.ConversationSettingInfo
 		Extra:        util.String(model.Extra),
 	}
 	return setting
-}
-
-func FixSettingModel(ctx context.Context, userId int64, conShortId int64) (*ConversationSettingInfo, error) {
-	resp, err := conversation.GetConversationCores(ctx, &im.GetConversationCoresRequest{ConShortIds: []int64{conShortId}})
-	if err != nil {
-		logrus.Errorf("[FixSettingModel] GetConversationCores err. err = %v", err)
-		return nil, err
-	}
-	if len(resp.CoreInfos) == 0 {
-		return nil, errors.New("conversation not found")
-	}
-	setting := &ConversationSettingInfo{
-		UserId:     userId,
-		ConShortId: conShortId,
-		ConType:    resp.CoreInfos[0].GetConType(),
-		Extra:      resp.CoreInfos[0].GetExtra(),
-	}
-	curTime := time.Now()
-	setting.ModifyTime = curTime
-	return setting, nil
 }
 
 func SetReadIndexStart(ctx context.Context, conShortId int64, userIds []int64, index int64) error {

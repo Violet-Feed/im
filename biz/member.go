@@ -1,8 +1,9 @@
-package conversation
+package biz
 
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"im/biz/model"
 	"im/dal"
@@ -11,7 +12,6 @@ import (
 	"im/proto_gen/im"
 	"im/util"
 	"math"
-	"strconv"
 )
 
 const ConversationLimit = 100
@@ -23,27 +23,24 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 	}
 	conShortId := req.GetConShortId()
 	//判断群是否存在
-	getConversationCoresRequest := &im.GetConversationCoresRequest{
-		ConShortIds: []int64{conShortId},
-	}
-	getConversationCoresResponse, err := GetConversationCores(ctx, getConversationCoresRequest)
+	cores, err := GetConversationCores(ctx, []int64{conShortId})
 	if err != nil {
 		logrus.Errorf("[AddConversationMembers] GetConversationCores err. err = %v", err)
 		resp.BaseResp.StatusCode = im.StatusCode_Server_Error
 		return resp, err
 	}
-	if len(getConversationCoresResponse.GetCoreInfos()) == 0 || getConversationCoresResponse.GetCoreInfos()[0].GetStatus() != 0 || getConversationCoresResponse.GetCoreInfos()[0].GetConType() != int32(im.ConversationType_Group_Chat) {
+	if len(cores) == 0 || cores[0].GetStatus() != 0 || cores[0].GetConType() != int32(im.ConversationType_Group_Chat) {
 		resp.BaseResp.StatusCode = im.StatusCode_Not_Found_Error
 		return resp, nil
 	}
 	//获取成员数量
-	locked := dal.RedisServer.Lock(ctx, "user_count:"+strconv.FormatInt(conShortId, 10))
+	locked := dal.RedisServer.Lock(ctx, fmt.Sprintf("user_count:%d", conShortId))
 	if !locked {
 		logrus.Errorf("[AddConversationMembers] Lock err.")
 		resp.BaseResp.StatusCode = im.StatusCode_OverFrequency_Error
 		return resp, err
 	}
-	defer dal.RedisServer.Unlock(ctx, "user_count:"+strconv.FormatInt(conShortId, 10))
+	defer dal.RedisServer.Unlock(ctx, fmt.Sprintf("user_count:%d", conShortId))
 	count, err := model.GetUserCount(ctx, conShortId)
 	if err != nil {
 		logrus.Errorf("[AddConversationMembers] GetUserCount err. err = %v", err)
@@ -108,4 +105,36 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 	//再次入群获取保存badgeCount->判断成员数量limit->保存userModels->再次判断limit，删除成员
 	//拉会话链，获取index起点,设置已读起点->发送进群命令消息->发送挡板消息
 	return resp, nil
+}
+
+func GetConversationMembers(ctx context.Context, conShortId int64, cursor int64, limit int64, onlyId bool) ([]*im.ConversationUserInfo, int64, error) {
+	if onlyId {
+		userIds, err := model.GetUserIdList(ctx, conShortId)
+		if err != nil {
+			logrus.Errorf("[GetConversationMembers] GetUserIdList err. err = %v", err)
+			return nil, 0, err
+		}
+		var userInfos []*im.ConversationUserInfo
+		for _, id := range userIds {
+			userInfos = append(userInfos, &im.ConversationUserInfo{
+				UserId: util.Int64(id),
+			})
+		}
+		return userInfos, 0, nil
+	}
+	//TODO:not only
+	return nil, 0, nil
+}
+
+func GetConversationMemberInfos(ctx context.Context, conShortId int64, userIds []int64) ([]*im.ConversationUserInfo, error) {
+	userMap, err := model.GetUserInfos(ctx, conShortId, userIds, true)
+	if err != nil {
+		logrus.Errorf("[GetConversationMemberInfos] GetUserInfos err. err = %v", err)
+		return nil, err
+	}
+	var userInfos []*im.ConversationUserInfo
+	for _, id := range userIds {
+		userInfos = append(userInfos, model.PackUserInfo(userMap[id]))
+	}
+	return userInfos, nil
 }
