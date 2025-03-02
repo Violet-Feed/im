@@ -19,7 +19,23 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 		BaseResp: &im.BaseResp{StatusCode: im.StatusCode_Success},
 	}
 	messageId := util.MsgIdGenerator.Generate().Int64()
-	//TODO:是否群成员
+	//是否群成员
+	var isMember int32
+	if req.GetConType() == int32(im.ConversationType_One_Chat) {
+		isMember = IsSingleMember(ctx, req.GetConId(), req.GetUserId())
+	} else if req.GetConType() == int32(im.ConversationType_Group_Chat) {
+		status, err := IsGroupsMember(ctx, []int64{req.GetConShortId()}, req.GetUserId())
+		if err != nil {
+			logrus.Errorf("[SendMessage] IsConversationMembers err. err = %v", err)
+			resp.BaseResp.StatusCode = im.StatusCode_Server_Error
+			return resp, err
+		}
+		isMember = status[0]
+	}
+	if isMember != 1 {
+		resp.BaseResp.StatusCode = im.StatusCode_Not_Found_Error
+		return resp, nil
+	}
 	if req.GetConType() == int32(im.ConversationType_One_Chat) && req.GetConShortId() == 0 { //创建会话
 		parts := strings.Split(req.GetConId(), ":")
 		minId, _ := strconv.ParseInt(parts[0], 10, 64)
@@ -74,13 +90,8 @@ func GetMessages(ctx context.Context, conShortId int64, msgIds []int64) ([]*im.M
 	var messageBodies []*im.MessageBody
 	for _, message := range messages {
 		var messageBody im.MessageBody
-		err = json.Unmarshal([]byte(message), &messageBody)
-		if err != nil {
-			logrus.Errorf("[GetMessages] unmarshal messageBody err. msg = %v, err = %v", message, err)
-			//TODO
-		} else {
-			messageBodies = append(messageBodies, &messageBody)
-		}
+		_ = json.Unmarshal([]byte(message), &messageBody)
+		messageBodies = append(messageBodies, &messageBody)
 	}
 	return messageBodies, nil
 }

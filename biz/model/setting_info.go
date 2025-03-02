@@ -46,6 +46,26 @@ func InsertSettingInfo(ctx context.Context, setting *ConversationSettingInfo) er
 	return nil
 }
 
+func InsertSettingInfos(ctx context.Context, settings []*ConversationSettingInfo) error {
+	logrus.Infof("[InsertSettingInfos] settings = %v", settings)
+	err := dal.MysqlDB.Create(&settings).Error
+	if err != nil {
+		logrus.Errorf("[InsertSettingInfo] mysql insert setting err. err = %v", err)
+		return err
+	}
+	keys, values := make([]string, 0), make([]string, 0)
+	for _, setting := range settings {
+		key := fmt.Sprintf("setting:%d:%d", setting.ConShortId, setting.UserId)
+		value, err := json.Marshal(setting)
+		if err != nil {
+			keys = append(keys, key)
+			values = append(values, string(value))
+		}
+	}
+	_ = dal.RedisServer.BatchSet(ctx, keys, values, 1*time.Minute)
+	return nil
+}
+
 func GetSettingInfo(ctx context.Context, userId int64, conShortIds []int64) (map[int64]*ConversationSettingInfo, error) {
 	var keys []string
 	var missIds []int64
@@ -74,7 +94,7 @@ func GetSettingInfo(ctx context.Context, userId int64, conShortIds []int64) (map
 		return settingsMap, nil
 	}
 	var settings []*ConversationSettingInfo
-	err = dal.MysqlDB.Where("user_id = (?) and con_short_id in (?) ", userId, missIds).Find(settings).Error
+	err = dal.MysqlDB.Where("user_id = (?) and con_short_id in (?) ", userId, missIds).Find(&settings).Error
 	if err != nil {
 		logrus.Errorf("[GetSettingInfo] mysql select err. err = %v", err)
 		return nil, err
@@ -104,10 +124,9 @@ func PackSettingModel(userId int64, conShortId int64, req *im.CreateConversation
 		UserId:     userId,
 		ConShortId: conShortId,
 		ConType:    req.GetConType(),
+		ModifyTime: time.Now(),
 		Extra:      req.GetExtra(),
 	}
-	curTime := time.Now()
-	setting.ModifyTime = curTime
 	return setting
 }
 

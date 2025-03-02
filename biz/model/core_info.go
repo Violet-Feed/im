@@ -77,7 +77,7 @@ func GetCoreInfos(ctx context.Context, conShortIds []int64) (map[int64]*Conversa
 		return coresMap, nil
 	}
 	var cores []*ConversationCoreInfo
-	err = dal.MysqlDB.Where("con_short_id in (?)", missIds).Find(cores).Error
+	err = dal.MysqlDB.Where("con_short_id in (?)", missIds).Find(&cores).Error
 	if err != nil {
 		logrus.Errorf("[GetCoreInfos] mysql select err. err = %v", err)
 		return nil, err

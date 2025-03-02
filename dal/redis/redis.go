@@ -63,6 +63,9 @@ func (r *RedisServiceImpl) BatchSet(ctx context.Context, keys []string, values [
 }
 
 func (r *RedisServiceImpl) Get(ctx context.Context, key string) (string, error) {
+	if len(key) == 0 {
+		return "", nil
+	}
 	res, err := r.client.Get(ctx, key).Result()
 	if err != nil {
 		logrus.Errorf("[Get] redis get err. err = %v", err)

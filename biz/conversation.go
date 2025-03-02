@@ -11,7 +11,6 @@ import (
 	"im/proto_gen/im"
 	"im/util"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -83,23 +82,22 @@ func GetConversationCores(ctx context.Context, conShortIds []int64) ([]*im.Conve
 	for _, id := range conShortIds {
 		coreInfos = append(coreInfos, model.PackCoreInfo(coresMap[id]))
 	}
-	//TODO:所有群聊成员数量，badge？
-	wg := sync.WaitGroup{}
-	badgeChan := make([]chan int, len(conShortIds))
+	countChan := make([]chan int, len(conShortIds))
+	for i := range countChan {
+		countChan[i] = make(chan int)
+	}
 	for i, conShortId := range conShortIds {
-		wg.Add(1)
 		go func(i int, conShortId int64) {
-			defer wg.Done()
 			count, err := model.GetUserCount(ctx, conShortId)
 			if err != nil {
 				logrus.Errorf("[GetConversationCores] GetUserCount err. err = %v", err)
+				countChan[i] <- 0
 			}
-			badgeChan[i] <- count
+			countChan[i] <- count
 		}(i, conShortId)
 	}
-	wg.Wait()
 	for i := 0; i < len(conShortIds); i++ {
-		coreInfos[i].MemberCount = util.Int32(int32(<-badgeChan[i]))
+		coreInfos[i].MemberCount = util.Int32(int32(<-countChan[i]))
 	}
 	return coreInfos, nil
 	//redis mget key:convId,mysql,redis一天
@@ -112,27 +110,25 @@ func GetConversationSettings(ctx context.Context, userId int64, conShortIds []in
 		logrus.Errorf("[GetConversationSettings] GetSettingInfo err. err = %v", err)
 		return nil, err
 	}
-	var settingInfos []*im.ConversationSettingInfo
+	var missIds []int64
 	for _, id := range conShortIds {
 		if settingModel[id] == nil {
-			//TODO:补齐
-			settingModel[id], err = fixSettingModel(ctx, userId, id)
-			if err != nil {
-				logrus.Errorf("[GetConversationSettings] FixSettingModel err. err = %v", err)
-			} else {
-				err = model.InsertSettingInfo(ctx, settingModel[id])
-				if err != nil {
-					logrus.Errorf("[GetConversationSettings] InsertSettingInfo err. err = %v", err)
-				}
+			missIds = append(missIds, id)
+		}
+	}
+	if len(missIds) != 0 {
+		fillModel, err := fillSettingModel(ctx, userId, missIds)
+		if err != nil {
+			logrus.Errorf("[GetConversationSettings] FixSettingModel err. err = %v", err)
+		} else {
+			for k, v := range fillModel {
+				settingModel[k] = v
 			}
 		}
-		settingInfos = append(settingInfos, model.PackSettingInfo(settingModel[id]))
 	}
-	//TODO:获取readIndex，readBadge
-	readIndexStart, err := model.GetReadIndexStart(ctx, conShortIds, userId)
-	if err != nil {
-		logrus.Errorf("[GetConversationSettings] GetReadIndexStart err. err = %v", err)
-		return nil, err
+	var settingInfos []*im.ConversationSettingInfo
+	for _, id := range conShortIds {
+		settingInfos = append(settingInfos, model.PackSettingInfo(settingModel[id]))
 	}
 	readIndexEnd, err := model.GetReadIndexEnd(ctx, conShortIds, userId)
 	if err != nil {
@@ -145,9 +141,10 @@ func GetConversationSettings(ctx context.Context, userId int64, conShortIds []in
 		return nil, err
 	}
 	for i, conShortId := range conShortIds {
-		settingInfos[i].MinIndex = util.Int64(readIndexStart[conShortId])
-		settingInfos[i].ReadIndexEnd = util.Int64(readIndexEnd[conShortId])
-		settingInfos[i].ReadBadgeCount = util.Int64(readBadge[conShortId])
+		if settingInfos[i] != nil {
+			settingInfos[i].ReadIndexEnd = util.Int64(readIndexEnd[conShortId])
+			settingInfos[i].ReadBadgeCount = util.Int64(readBadge[conShortId])
+		}
 	}
 	return settingInfos, nil
 	//userId,convIds
@@ -156,24 +153,32 @@ func GetConversationSettings(ctx context.Context, userId int64, conShortIds []in
 	//获取readIndex、readBadge，abase mget，key；convId:userId
 }
 
-func fixSettingModel(ctx context.Context, userId int64, conShortId int64) (*model.ConversationSettingInfo, error) {
-	cores, err := GetConversationCores(ctx, []int64{conShortId})
+func fillSettingModel(ctx context.Context, userId int64, conShortIds []int64) (map[int64]*model.ConversationSettingInfo, error) {
+	cores, err := GetConversationCores(ctx, conShortIds)
 	if err != nil {
-		logrus.Errorf("[FixSettingModel] GetConversationCores err. err = %v", err)
+		logrus.Errorf("[fillSettingModel] GetConversationCores err. err = %v", err)
 		return nil, err
 	}
-	if len(cores) == 0 {
-		return nil, errors.New("conversation not found")
+	settings := make([]*model.ConversationSettingInfo, 0)
+	fillModel := make(map[int64]*model.ConversationSettingInfo)
+	for _, core := range cores {
+		setting := &model.ConversationSettingInfo{
+			UserId:     userId,
+			ConShortId: core.GetConShortId(),
+			ConType:    core.GetConType(),
+			ModifyTime: time.Now(),
+			Extra:      core.GetExtra(),
+		}
+		settings = append(settings, setting)
+		fillModel[setting.ConShortId] = setting
 	}
-	setting := &model.ConversationSettingInfo{
-		UserId:     userId,
-		ConShortId: conShortId,
-		ConType:    cores[0].GetConType(),
-		Extra:      cores[0].GetExtra(),
+	err = model.InsertSettingInfos(ctx, settings)
+	if err != nil {
+		logrus.Errorf("[fillSettingModel] InsertSettingInfos err. err = %v", err)
+		return nil, err
 	}
-	curTime := time.Now()
-	setting.ModifyTime = curTime
-	return setting, nil
+	return fillModel, nil
+	//判断是否成员
 }
 
 func IncrConversationBadge(ctx context.Context, userId int64, conShortId int64) (int64, error) {

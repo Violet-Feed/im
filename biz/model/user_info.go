@@ -69,12 +69,13 @@ func GetUserCount(ctx context.Context, conShortId int64) (int, error) {
 		return int(count), nil
 	}
 	var users []*ConversationUserInfo
-	err = dal.MysqlDB.Select("user_id", "create_time").Where("con_short_id=?", conShortId).Find(&users).Error
+	//err = dal.MysqlDB.Select("user_id", "create_time").Where("con_short_id=?", conShortId).Find(&users).Error
+	err = dal.MysqlDB.Where("con_short_id=?", conShortId).Find(&users).Error
 	if err != nil {
 		logrus.Errorf("[GetUserCount] mysql get user count err. err = %v", err)
 		return 0, err
 	}
-	if count == 0 {
+	if count == 0 && len(users) != 0 {
 		go AsyncSetUserZSetCache(ctx, key, users)
 	}
 	return len(users), nil

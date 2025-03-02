@@ -152,20 +152,20 @@ func AppendUserConIndex(ctx context.Context, userId int64, conShortId int64) (in
 	return int64(userConIndex), int64(preUserConIndex), nil
 }
 
-func PullConversationIndex(ctx context.Context, conShortId int64, conIndex int64, limit int64) ([]int64, int64, error) {
+func PullConversationIndex(ctx context.Context, conShortId int64, conIndex int64, limit int64) ([]int64, []int64, error) {
 	segKey := fmt.Sprintf("conv_segment:%d", conShortId)
 	seg, err := dal.KvrocksServer.Get(ctx, segKey)
 	if errors.Is(err, redis.Nil) {
-		return nil, 0, nil
+		return nil, nil, nil
 	} else if err != nil {
 		logrus.Errorf("[PullConversationIndex] kvrocks get seg err. err = %v", err)
-		return nil, 0, err
+		return nil, nil, err
 	}
 	indexKey := fmt.Sprintf("conv_index:%d:%s", conShortId, seg)
 	length, err := dal.KvrocksServer.LLen(ctx, indexKey)
 	if err != nil {
 		logrus.Errorf("[PullConversationIndex] kvrocks llen 1 err. err = %v", err)
-		return nil, 0, err
+		return nil, nil, err
 	}
 	segment, _ := strconv.ParseInt(seg, 10, 64)
 	maxIndex := segment*SegmentLimit + length - 1
@@ -174,17 +174,17 @@ func PullConversationIndex(ctx context.Context, conShortId int64, conIndex int64
 	} else {
 		segment = conIndex / SegmentLimit
 	}
-	msgIds := make([]int64, 0)
+	msgIds, conIndexs := make([]int64, 0), make([]int64, 0)
 	//反向拉链
 	for limit > 0 && segment >= 0 {
 		indexKey = fmt.Sprintf("conv_index:%d:%d", conShortId, segment)
 		length, err = dal.KvrocksServer.LLen(ctx, indexKey)
 		if err != nil {
 			logrus.Errorf("[PullConversationIndex] kvrocks llen 2 err. err = %v", err)
-			return nil, 0, err
+			return nil, nil, err
 		}
 		if length == 0 && len(msgIds) > 0 {
-			return msgIds, conIndex, nil
+			return msgIds, conIndexs, nil
 		}
 		var start, stop int64
 		if length > limit {
@@ -195,16 +195,17 @@ func PullConversationIndex(ctx context.Context, conShortId int64, conIndex int64
 		subMsgIds, err := dal.KvrocksServer.LRange(ctx, indexKey, start, stop)
 		if err != nil {
 			logrus.Errorf("[PullConversationIndex] kvrocks lrange err. err = %v", err)
-			return nil, 0, err
+			return nil, nil, err
 		}
 		for i := len(subMsgIds) - 1; i >= 0; i-- {
 			msgId, _ := strconv.ParseInt(subMsgIds[i], 10, 64)
 			msgIds = append(msgIds, msgId)
+			conIndexs = append(conIndexs, segment*SegmentLimit+int64(i))
 		}
 		segment--
 		limit -= stop - start + 1
 	}
-	return msgIds, conIndex, nil
+	return msgIds, conIndexs, nil
 }
 
 func PullUserCmdIndex(ctx context.Context, userId int64, userCmdIndex int64, limit int64) ([]int64, int64, error) {
@@ -261,7 +262,7 @@ func PullUserCmdIndex(ctx context.Context, userId int64, userCmdIndex int64, lim
 	return msgIds, userCmdIndex, nil
 }
 
-func PullUserConIndex(ctx context.Context, userId int64, userConIndex int64, limit int64) ([]int64, int64, int64, bool, error) {
+func PullUserConIndex(ctx context.Context, userId int64, userConIndex int64, limit int64) ([]int64, []int64, bool, error) {
 	key := fmt.Sprintf("user_con_index:%d", userId)
 	opt := &redis.ZRangeBy{
 		Min:   "0",
@@ -271,21 +272,20 @@ func PullUserConIndex(ctx context.Context, userId int64, userConIndex int64, lim
 	members, err := dal.KvrocksServer.ZRevRangByScoreWithScores(ctx, key, opt)
 	if err != nil {
 		logrus.Errorf("[PullUserConIndex] kvrocks ZRevRangByScoreWithScores err. err = %v", err)
-		return nil, 0, 0, false, err
+		return nil, nil, false, err
 	}
-	conShortIds := make([]int64, 0)
+	conShortIds, userConIndexs := make([]int64, 0), make([]int64, 0)
 	for _, member := range members {
-		conShortIds = append(conShortIds, member.Member.(int64))
+		conShortId, _ := strconv.ParseInt(member.Member.(string), 10, 64)
+		conShortIds = append(conShortIds, conShortId)
+		userConIndexs = append(userConIndexs, int64(member.Score))
 	}
 	count := len(members)
-	lastUserConIndex, nextUserConIndex, hasMore := int64(0), int64(0), false
-	if count > 0 {
-		lastUserConIndex = int64(members[0].Score)
-		if int64(count) > limit {
-			nextUserConIndex = int64(members[limit].Score)
-			hasMore = true
-			conShortIds = conShortIds[:limit]
-		}
+	hasMore := false
+	if int64(count) > limit {
+		hasMore = true
+		conShortIds = conShortIds[:limit]
+		userConIndexs = userConIndexs[:limit]
 	}
-	return conShortIds, lastUserConIndex, nextUserConIndex, hasMore, nil
+	return conShortIds, userConIndexs, hasMore, nil
 }

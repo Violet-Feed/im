@@ -12,6 +12,7 @@ import (
 	"im/util"
 	"math"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -68,11 +69,11 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 		return resp, err
 	}
 	//获取设置index
-	_, lastIndex, err := PullConversationIndex(ctx, conShortId, math.MaxInt64, 1)
+	_, conIndex, err := PullConversationIndex(ctx, conShortId, math.MaxInt64, 1)
 	if err != nil {
 		logrus.Errorf("[AddConversationMembers] PullConversationIndex err. err = %v", err)
 	} else {
-		err = model.SetReadIndexStart(ctx, conShortId, req.GetMembers(), lastIndex)
+		err = model.SetReadIndexStart(ctx, conShortId, req.GetMembers(), conIndex[0])
 		if err != nil {
 			logrus.Errorf("[AddConversationMembers] SetReadIndexStart err. err = %v", err)
 		}
@@ -128,7 +129,7 @@ func GetConversationMemberInfos(ctx context.Context, conShortId int64, userIds [
 	return userInfos, nil
 }
 
-func IsConversationMembers(ctx context.Context, conShortIds []int64, userId int64) (map[int64]int32, error) {
+func IsGroupsMember(ctx context.Context, conShortIds []int64, userId int64) (map[int64]int32, error) {
 	wg := sync.WaitGroup{}
 	statusChan := make([]chan int32, len(conShortIds))
 	for i, conShortId := range conShortIds {
@@ -164,4 +165,14 @@ func IsConversationMembers(ctx context.Context, conShortIds []int64, userId int6
 	return status, nil
 	//获取core？
 	//并发redis zscore;err mysql
+}
+
+func IsSingleMember(ctx context.Context, conId string, userId int64) int32 {
+	parts := strings.Split(conId, ":")
+	minId, _ := strconv.ParseInt(parts[0], 10, 64)
+	maxId, _ := strconv.ParseInt(parts[1], 10, 64)
+	if userId == minId || userId == maxId {
+		return 1
+	}
+	return 0
 }

@@ -2,44 +2,42 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 	"im/biz"
 	"im/proto_gen/im"
 	"im/util"
 	"net/http"
 )
 
-func checkMessageSendRequest(c *gin.Context, req *im.MessageSendRequest) bool {
-	//TODO：参数校验
+func checkMessageSendRequest(req *im.MessageSendRequest) bool {
 	if req.GetConId() == "" {
-		logrus.Info("ConId is empty")
 		return false
 	}
 	if req.GetConType() < 1 || req.GetConType() > 5 {
-		logrus.Info("ConType is invalid")
 		return false
 	}
 	if req.GetMsgType() < 1 || req.GetMsgType() > 5 && req.GetMsgType() != 1000 && req.GetMsgType() != 1001 {
-		logrus.Info("MsgType is invalid")
 		return false
 	}
 	if req.GetMsgContent() == "" {
-		logrus.Info("MsgContent is empty")
 		return false
 	}
 	return true
 }
 
 func Send(c *gin.Context) {
+	resp := &im.MessageSendResponse{}
 	var req *im.MessageSendRequest
 	err := c.ShouldBindJSON(&req)
-	if err != nil || !checkMessageSendRequest(c, req) {
-		c.JSON(http.StatusOK, im.StatusCode_Param_Error)
+	if err != nil || !checkMessageSendRequest(req) {
+		c.JSON(http.StatusOK, HttpResponse{
+			Code:    im.StatusCode_Param_Error,
+			Message: "param error",
+			Data:    resp,
+		})
 		return
 	}
 	userIdStr, _ := c.Get("userId")
 	userId := userIdStr.(int64)
-	//TODO：鉴权
 	sendMessageRequest := &im.SendMessageRequest{
 		UserId:     util.Int64(userId),
 		ConShortId: req.ConShortId,
@@ -50,10 +48,18 @@ func Send(c *gin.Context) {
 	}
 	sendMessageResponse, err := biz.SendMessage(c, sendMessageRequest)
 	if err != nil {
-		c.JSON(http.StatusOK, sendMessageResponse.BaseResp.StatusCode)
+		c.JSON(http.StatusOK, HttpResponse{
+			Code:    sendMessageResponse.GetBaseResp().GetStatusCode(),
+			Message: sendMessageResponse.GetBaseResp().GetStatusMessage(),
+			Data:    resp,
+		})
 		return
 	}
-	c.JSON(http.StatusOK, im.StatusCode_Success)
+	c.JSON(http.StatusOK, HttpResponse{
+		Code:    im.StatusCode_Success,
+		Message: "success",
+		Data:    resp,
+	})
 	return
 	//检查合法->生成serverMsgId->异步/同步发送消息
 	//检查会话(单聊->创建会话(im_conversation_api)，获取会话coreInfo(im_conversation_api，redis+mysql))->检查消息(integration_callback)

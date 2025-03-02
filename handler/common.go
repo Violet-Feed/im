@@ -1,7 +1,9 @@
 package handler
 
-type Response struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
+import "im/proto_gen/im"
+
+type HttpResponse struct {
+	Code    im.StatusCode `json:"code"`
+	Message string        `json:"message"`
+	Data    interface{}   `json:"data"`
 }

@@ -30,7 +30,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			messageEvent.UserConIndex = util.Int64(userConIndex)
 			messageEvent.PreUserConIndex = util.Int64(preUserConIndex)
 		}
-		if messageEvent.GetBadgeCount() == 0 {
+		if messageEvent.GetBadgeCount() == 0 && userId != messageEvent.GetMsgBody().GetUserId() {
 			badgeCount, err := biz.IncrConversationBadge(ctx, userId, messageEvent.GetMsgBody().GetConShortId())
 			if err != nil {
 				logrus.Errorf("[UserProcess] IncrConversationBadge err. err = %v", err)
