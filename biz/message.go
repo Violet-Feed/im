@@ -7,7 +7,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"im/dal"
 	"im/dal/mq"
-	"im/handler/conversation"
 	"im/proto_gen/im"
 	"im/util"
 	"strconv"
@@ -30,7 +29,7 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 			ConType: req.ConType,
 			Members: []int64{minId, maxId},
 		}
-		createConversationResponse, err := conversation.CreateConversation(ctx, createConversationRequest)
+		createConversationResponse, err := CreateConversation(ctx, createConversationRequest)
 		if err != nil {
 			logrus.Errorf("[SendMessage] CreateConversation err. err = %v", err)
 			resp.BaseResp.StatusCode = im.StatusCode_Server_Error

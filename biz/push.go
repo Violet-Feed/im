@@ -7,9 +7,11 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"im/dal"
-	"im/handler"
 	"im/proto_gen/im"
+	"sync"
 )
+
+var Connections sync.Map
 
 func Push(ctx context.Context, req *im.PushRequest) (resp *im.PushResponse, err error) {
 	resp = &im.PushResponse{
@@ -26,7 +28,7 @@ func Push(ctx context.Context, req *im.PushRequest) (resp *im.PushResponse, err 
 	}
 	for connId, connInfo := range conns {
 		logrus.Infof("[Push] get connections. connId = %v, connInfo = %v", connId, connInfo)
-		connInter, _ := handler.Connections.Load(connId)
+		connInter, _ := Connections.Load(connId)
 		if connInter == nil {
 			go dal.RedisServer.HDel(ctx, key, connId)
 			continue

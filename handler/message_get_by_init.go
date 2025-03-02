@@ -4,11 +4,8 @@ import (
 	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"im/handler/conversation"
-	"im/handler/index"
-	"im/handler/message"
+	"im/biz"
 	"im/proto_gen/im"
-	"im/util"
 	"math"
 	"net/http"
 	"sync"
@@ -33,128 +30,90 @@ func GetByInit(c *gin.Context) {
 	if userConIndex == 0 {
 		userConIndex = math.MaxInt64
 	}
-	pullUserConIndexRequest := &im.PullUserConIndexRequest{
-		UserId:       util.Int64(userId),
-		UserConIndex: util.Int64(userConIndex),
-		Limit:        util.Int64(ConvLimit),
-	}
-	pullUserConIndexResponse, err := index.PullUserConIndex(c, pullUserConIndexRequest)
+	conShortIds, _, _, _, err := biz.PullUserConIndex(c, userId, userConIndex, ConvLimit)
 	if err != nil {
 		logrus.Errorf("[GetByInit] PullUserConIndex err. err = %v", err)
 		c.JSON(http.StatusOK, im.StatusCode_Server_Error)
 		return
 	}
-	conShortIds := pullUserConIndexResponse.GetConShortIds()
 	//拉取会话链
 	wg := sync.WaitGroup{}
 	for _, convShortId := range conShortIds {
 		wg.Add(1)
 		go func(ctx context.Context, convShortId int64) {
 			defer wg.Done()
-			pullConversationIndexRequest := &im.PullConversationIndexRequest{
-				ConShortId: util.Int64(convShortId),
-				ConIndex:   util.Int64(math.MaxInt64),
-				Limit:      util.Int64(MsgLimit),
-			}
-			pullConversationIndexResponse, err := index.PullConversationIndex(ctx, pullConversationIndexRequest)
+			msgIds, _, err := biz.PullConversationIndex(ctx, convShortId, math.MaxInt64, MsgLimit)
 			if err != nil {
 				logrus.Errorf("[GetByInit] PullConversationIndex err. err = %v", err)
 				return
 			}
-			getMessageRequest := &im.GetMessagesRequest{
-				ConShortId: util.Int64(convShortId),
-				MsgIds:     pullConversationIndexResponse.MsgIds,
-			}
-			getMessageResponse, err := message.GetMessages(ctx, getMessageRequest)
+			_, err = biz.GetMessages(ctx, convShortId, msgIds)
 			if err != nil {
 				logrus.Errorf("[GetByInit] GetMessage err. err = %v", err)
 				return
 			}
-			getMessageResponse.GetMsgBodies()
 		}(c, convShortId)
 	}
 	//获取用户命令链index
 	wg.Add(1)
-	go func(ctx context.Context, userId int64) {
+	go func(ctx context.Context) {
 		defer wg.Done()
-		pullUserCmdIndexRequest := &im.PullUserCmdIndexRequest{
-			UserId:       util.Int64(userId),
-			UserCmdIndex: util.Int64(math.MaxInt64),
-			Limit:        util.Int64(1),
-		}
-		pullUserCmdIndexResponse, err := index.PullUserCmdIndex(ctx, pullUserCmdIndexRequest)
+		_, _, err := biz.PullUserCmdIndex(ctx, userId, math.MaxInt64, 1)
 		if err != nil {
 			logrus.Errorf("[GetByInit] PullUserCmdIndex err. err = %v", err)
 			return
 		}
-		pullUserCmdIndexResponse.GetLastUserCmdIndex()
-	}(c, userId)
+	}(c)
 	//获取会话badge
 	wg.Add(1)
-	go func(ctx context.Context, convIds []int64) {
+	go func(ctx context.Context) {
 		defer wg.Done()
-		getConversationBadgeRequest := &im.GetConversationBadgesRequest{
-			UserId:      util.Int64(userId),
-			ConShortIds: convIds,
-		}
-		getConversationBadgeResponse, err := conversation.GetConversationBadges(ctx, getConversationBadgeRequest)
+		_, err := biz.GetConversationBadges(ctx, userId, conShortIds)
 		if err != nil {
 			logrus.Errorf("[GetByInit] GetConversationBadge err. err = %v", err)
 			return
 		}
-		getConversationBadgeResponse.GetBadgeCounts()
-	}(c, conShortIds)
+	}(c)
 	//获取会话core
 	wg.Add(1)
-	go func() {
+	go func(ctx context.Context) {
 		defer wg.Done()
-		getConversationCoresRequest := &im.GetConversationCoresRequest{
-			ConShortIds: conShortIds,
-		}
-		getConversationCoresResponse, err := conversation.GetConversationCores(c, getConversationCoresRequest)
+		_, err := biz.GetConversationCores(ctx, conShortIds)
 		if err != nil {
 			logrus.Errorf("[GetByInit] GetConversationCores err. err = %v", err)
 			return
 		}
-		getConversationCoresResponse.GetCoreInfos()
-	}()
+	}(c)
 	//获取会话setting
 	wg.Add(1)
-	go func() {
+	go func(ctx context.Context) {
 		defer wg.Done()
-		getConversationSettingsRequest := &im.GetConversationSettingsRequest{
-			UserId:      util.Int64(userId),
-			ConShortIds: conShortIds,
-		}
-		getConversationSettingsResponse, err := conversation.GetConversationSettings(c, getConversationSettingsRequest)
+		_, err := biz.GetConversationSettings(ctx, userId, conShortIds)
 		if err != nil {
 			logrus.Errorf("[GetByInit] GetConversationSettings err. err = %v", err)
 			return
 		}
-		getConversationSettingsResponse.GetSettingInfos()
-	}()
+	}(c)
 	//TODO:获取会话member信息
 	wg.Add(1)
-	go func() {
+	go func(ctx context.Context) {
 		defer wg.Done()
-		status, err := conversation.IsConversationMembers(c, conShortIds, userId)
+		_, err := biz.IsConversationMembers(ctx, conShortIds, userId)
 		if err != nil {
 			logrus.Errorf("[GetByInit] IsConversationMembers err. err = %v", err)
 			return
 		}
-		logrus.Info(status)
-	}()
+	}(c)
 	//获取最近user_infos
 	wg.Add(1)
-	go func() {
+	go func(ctx context.Context) {
 		defer wg.Done()
-		userInfos, err := conversation.GetConversationUsers(c, 0, []int64{0})
+		_, err := biz.GetConversationMemberInfos(ctx, 0, []int64{0})
 		if err != nil {
 			logrus.Errorf("[GetByInit] GetConversationUsers err. err = %v", err)
 			return
 		}
-		logrus.Info(userInfos)
-	}()
+	}(c)
 	wg.Wait()
 	//获取最近会话id(recent_conversation,abase,zset)->拉取会话链(inbox_api,V2)->获取消息内容(message_api)->隐藏撤回消息
 	//->获取会话core,setting信息(im_conversation_api)->获取会话ext信息(conversation_ext)->获取群聊是否是成员,最近成员信息(im_conversation_api)

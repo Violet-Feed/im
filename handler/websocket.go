@@ -6,15 +6,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
+	"im/biz"
 	"im/dal"
 	"im/proto_gen/im"
 	"im/util"
 	"net/http"
-	"sync"
 	"time"
 )
-
-var Connections sync.Map
 
 type ConnInfo struct {
 	UserId   int64  `json:"user_id"`
@@ -41,8 +39,8 @@ func WebsocketHandler(c *gin.Context) {
 	defer conn.Close()
 
 	connId := util.ConnIdGenerator.Generate().String()
-	Connections.Store(connId, conn)
-	defer Connections.Delete(connId)
+	biz.Connections.Store(connId, conn)
+	defer biz.Connections.Delete(connId)
 
 	userIdStr, _ := c.Get("userId")
 	userId := userIdStr.(int64)

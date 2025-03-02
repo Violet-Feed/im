@@ -3,7 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"im/handler/message"
+	"im/biz"
 	"im/proto_gen/im"
 	"im/util"
 	"net/http"
@@ -48,7 +48,7 @@ func Send(c *gin.Context) {
 		MsgType:    req.MsgType,
 		MsgContent: req.MsgContent,
 	}
-	sendMessageResponse, err := message.SendMessage(c, sendMessageRequest)
+	sendMessageResponse, err := biz.SendMessage(c, sendMessageRequest)
 	if err != nil {
 		c.JSON(http.StatusOK, sendMessageResponse.BaseResp.StatusCode)
 		return

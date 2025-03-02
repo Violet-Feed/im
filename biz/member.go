@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"im/biz/model"
 	"im/dal"
-	"im/handler/index"
-	"im/handler/message"
 	"im/proto_gen/im"
 	"im/util"
 	"math"
+	"strconv"
+	"sync"
 )
 
 const ConversationLimit = 100
@@ -67,16 +68,10 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 		return resp, err
 	}
 	//获取设置index
-	pullConversationIndexRequest := &im.PullConversationIndexRequest{
-		ConShortId: util.Int64(conShortId),
-		ConIndex:   util.Int64(math.MaxInt64),
-		Limit:      util.Int64(1),
-	}
-	pullConversationIndexResponse, err := index.PullConversationIndex(ctx, pullConversationIndexRequest)
+	_, lastIndex, err := PullConversationIndex(ctx, conShortId, math.MaxInt64, 1)
 	if err != nil {
 		logrus.Errorf("[AddConversationMembers] PullConversationIndex err. err = %v", err)
 	} else {
-		lastIndex := pullConversationIndexResponse.GetLastConIndex()
 		err = model.SetReadIndexStart(ctx, conShortId, req.GetMembers(), lastIndex)
 		if err != nil {
 			logrus.Errorf("[AddConversationMembers] SetReadIndexStart err. err = %v", err)
@@ -97,7 +92,7 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 		MsgType:    util.Int32(int32(im.MessageType_SpecialCmd)),
 		MsgContent: util.String(string(cmdByte)),
 	}
-	_, err = message.SendMessage(ctx, sendMessageRequest)
+	_, err = SendMessage(ctx, sendMessageRequest)
 	if err != nil {
 		logrus.Errorf("[AddConversationMembers] SendMessage err. err = %v", err)
 	}
@@ -107,22 +102,16 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 	return resp, nil
 }
 
-func GetConversationMembers(ctx context.Context, conShortId int64, cursor int64, limit int64, onlyId bool) ([]*im.ConversationUserInfo, int64, error) {
-	if onlyId {
-		userIds, err := model.GetUserIdList(ctx, conShortId)
-		if err != nil {
-			logrus.Errorf("[GetConversationMembers] GetUserIdList err. err = %v", err)
-			return nil, 0, err
-		}
-		var userInfos []*im.ConversationUserInfo
-		for _, id := range userIds {
-			userInfos = append(userInfos, &im.ConversationUserInfo{
-				UserId: util.Int64(id),
-			})
-		}
-		return userInfos, 0, nil
+func GetConversationMemberIds(ctx context.Context, conShortId int64) ([]int64, error) {
+	userIds, err := model.GetUserIdList(ctx, conShortId)
+	if err != nil {
+		logrus.Errorf("[GetConversationMembers] GetUserIdList err. err = %v", err)
+		return nil, err
 	}
-	//TODO:not only
+	return userIds, nil
+}
+
+func GetConversationMembers(ctx context.Context, conShortId int64, cursor int64, limit int64) ([]*im.ConversationUserInfo, int64, error) {
 	return nil, 0, nil
 }
 
@@ -137,4 +126,42 @@ func GetConversationMemberInfos(ctx context.Context, conShortId int64, userIds [
 		userInfos = append(userInfos, model.PackUserInfo(userMap[id]))
 	}
 	return userInfos, nil
+}
+
+func IsConversationMembers(ctx context.Context, conShortIds []int64, userId int64) (map[int64]int32, error) {
+	wg := sync.WaitGroup{}
+	statusChan := make([]chan int32, len(conShortIds))
+	for i, conShortId := range conShortIds {
+		wg.Add(1)
+		go func(i int, conShortId int64) {
+			defer wg.Done()
+			_, err := dal.RedisServer.ZScore(ctx, "members:"+strconv.FormatInt(conShortId, 10), strconv.FormatInt(userId, 10))
+			if err == nil {
+				statusChan[i] <- 1
+				return
+			} else if err == redis.Nil {
+				statusChan[i] <- 0
+				return
+			} else {
+				userInfo, err := model.GetUserInfos(ctx, conShortId, []int64{userId}, false)
+				if err != nil {
+					logrus.Errorf("[IsMembers] GetUserInfos err. err = %v", err)
+					statusChan[i] <- -1
+				}
+				if len(userInfo) > 0 {
+					statusChan[i] <- 1
+				} else {
+					statusChan[i] <- 0
+				}
+			}
+		}(i, conShortId)
+	}
+	wg.Wait()
+	status := make(map[int64]int32)
+	for i, conShortId := range conShortIds {
+		status[conShortId] = <-statusChan[i]
+	}
+	return status, nil
+	//获取core？
+	//并发redis zscore;err mysql
 }

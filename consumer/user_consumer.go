@@ -6,10 +6,8 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/sirupsen/logrus"
+	"im/biz"
 	"im/dal/mq"
-	"im/handler/conversation"
-	"im/handler/index"
-	"im/handler/push"
 	"im/proto_gen/im"
 	"im/util"
 	"im/util/backoff"
@@ -24,65 +22,29 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	//TODO:判断是否为高频用户(本地+redis,写入高频队列batch)->处理重试消息
 	if messageEvent.GetMsgBody().GetMsgType() < 1000 {
 		if messageEvent.GetUserConIndex() == 0 {
-			appendUserConIndexRequest := &im.AppendUserConIndexRequest{
-				UserId:     util.Int64(userId),
-				ConShortId: messageEvent.GetMsgBody().ConShortId,
-			}
-			appendUserConIndexResponse, err := index.AppendUserConIndex(ctx, appendUserConIndexRequest)
+			userConIndex, preUserConIndex, err := biz.AppendUserConIndex(ctx, userId, messageEvent.GetMsgBody().GetConShortId())
 			if err != nil {
 				logrus.Errorf("[UserProcess] AppendUserConIndex err. err = %v", err)
-				retryCount := messageEvent.GetRetryCount()
-				if retryCount > 3 {
-					logrus.Warnf("[UserProcess] retry too much. message = %v", messageEvent)
-				}
-				messageEvent.RetryCount = util.Int32(retryCount + 1)
-				err = backoff.Retry(func() error {
-					return mq.SendToMq(ctx, "user", strconv.FormatInt(userId, 10), messageEvent)
-				}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), backoff.Infinite))
-				return consumer.ConsumeSuccess, nil
+				return mq.SendToRetry(ctx, "user", messageEvent)
 			}
-			messageEvent.UserConIndex = appendUserConIndexResponse.UserConIndex
-			messageEvent.PreUserConIndex = appendUserConIndexResponse.PreUserConIndex
+			messageEvent.UserConIndex = util.Int64(userConIndex)
+			messageEvent.PreUserConIndex = util.Int64(preUserConIndex)
 		}
 		if messageEvent.GetBadgeCount() == 0 {
-			incrConversationBadgeRequest := &im.IncrConversationBadgeRequest{
-				UserId:     util.Int64(userId),
-				ConShortId: messageEvent.GetMsgBody().ConShortId,
-			}
-			incrConversationBadgeResponse, err := conversation.IncrConversationBadge(ctx, incrConversationBadgeRequest)
+			badgeCount, err := biz.IncrConversationBadge(ctx, userId, messageEvent.GetMsgBody().GetConShortId())
 			if err != nil {
 				logrus.Errorf("[UserProcess] IncrConversationBadge err. err = %v", err)
-				retryCount := messageEvent.GetRetryCount()
-				if retryCount > 3 {
-					logrus.Warnf("[UserProcess] retry too much. message = %v", messageEvent)
-				}
-				messageEvent.RetryCount = util.Int32(retryCount + 1)
-				err = backoff.Retry(func() error {
-					return mq.SendToMq(ctx, "user", strconv.FormatInt(userId, 10), messageEvent)
-				}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), backoff.Infinite))
-				return consumer.ConsumeSuccess, nil
+				return mq.SendToRetry(ctx, "user", messageEvent)
 			}
-			messageEvent.BadgeCount = incrConversationBadgeResponse.BadgeCount
+			messageEvent.BadgeCount = util.Int64(badgeCount)
 		}
 	} else if messageEvent.GetUserCmdIndex() == 0 {
-		appendUserCmdIndexRequest := &im.AppendUserCmdIndexRequest{
-			UserId: util.Int64(userId),
-			MsgId:  messageEvent.GetMsgBody().ConShortId,
-		}
-		appendUserCmdIndexResponse, err := index.AppendUserCmdIndex(ctx, appendUserCmdIndexRequest)
+		userCmdIndex, err := biz.AppendUserCmdIndex(ctx, userId, messageEvent.GetMsgBody().GetMsgId())
 		if err != nil {
 			logrus.Errorf("[UserProcess] AppendUserCmdIndex err. err = %v", err)
-			retryCount := messageEvent.GetRetryCount()
-			if retryCount > 3 {
-				logrus.Warnf("[UserProcess] retry too much. message = %v", messageEvent)
-			}
-			messageEvent.RetryCount = util.Int32(retryCount + 1)
-			err = backoff.Retry(func() error {
-				return mq.SendToMq(ctx, "user", strconv.FormatInt(userId, 10), messageEvent)
-			}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), backoff.Infinite))
-			return consumer.ConsumeSuccess, nil
+			return mq.SendToRetry(ctx, "user", messageEvent)
 		}
-		messageEvent.UserCmdIndex = appendUserCmdIndexResponse.UserCmdIndex
+		messageEvent.UserCmdIndex = util.Int64(userCmdIndex)
 	}
 	pushRequest := &im.PushRequest{
 		MsgBody:         messageEvent.GetMsgBody(),
@@ -94,7 +56,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		UserCmdIndex:    messageEvent.UserCmdIndex,
 	}
 	err := backoff.Retry(func() error {
-		_, err := push.Push(ctx, pushRequest)
+		_, err := biz.Push(ctx, pushRequest)
 		if err != nil {
 			logrus.Errorf("[UserProcess] Push err. err = %v", err)
 		}
@@ -102,17 +64,9 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10))
 	if err != nil {
 		logrus.Errorf("[UserProcess] Push all err. err = %v", err)
-		retryCount := messageEvent.GetRetryCount()
-		if retryCount > 3 {
-			logrus.Warnf("[UserProcess] retry too much. message = %v", messageEvent)
-		}
-		messageEvent.RetryCount = util.Int32(retryCount + 1)
-		err = backoff.Retry(func() error {
-			return mq.SendToMq(ctx, "user", strconv.FormatInt(userId, 10), messageEvent)
-		}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), backoff.Infinite))
+		return mq.SendToRetry(ctx, "user", messageEvent)
 	}
 	return consumer.ConsumeSuccess, nil
-
 	//消费消息->判断是否为高频用户(本地+redis,写入高频队列batch)->处理重试消息
 	//->普通消息:更新最近会话(recent,abase,zset)->增加未读(im_counter_manager_rust,abase,xget获取当前已读数和index,redis对msgid加锁,xset)
 	//->命令消息:写入命令链(inbox_api,V2)->处理特殊命令
