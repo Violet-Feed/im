@@ -34,7 +34,6 @@ func GetByInit(c *gin.Context) {
 		if userConIndex == 0 {
 			userConIndex = math.MaxInt64
 		}
-		//TODO:userConIndexs写入
 		conShortIds, userConIndexs, hasMore, err := biz.PullUserConIndex(c, userId, userConIndex, ConvLimit)
 		if err != nil {
 			logrus.Errorf("[GetByInit] PullUserConIndex err. err = %v", err)
@@ -45,7 +44,6 @@ func GetByInit(c *gin.Context) {
 			globalErr = err
 			return
 		}
-		logrus.Infof("[GetByInit] conShortIds = %v", conShortIds)
 		hasMoreChan <- hasMore
 		if userConIndexs != nil {
 			nextUserConIndexChan <- userConIndexs[len(userConIndexs)-1] - 1
@@ -103,7 +101,6 @@ func GetByInit(c *gin.Context) {
 			for _, core := range cores {
 				coresMap[core.GetConShortId()] = core
 			}
-			logrus.Infof("aaa")
 			coresMapChan <- coresMap
 			//获取是否是会话member
 			go func() {
@@ -173,12 +170,13 @@ func GetByInit(c *gin.Context) {
 		badgesMap := <-badgesMapChan
 		conMsgs := make([]*im.ConversationMessage, 0)
 		//TODO:通过minIndex过滤消息,过滤非成员，无core、setting
-		for _, conShortId := range conShortIds {
+		for i, conShortId := range conShortIds {
 			core := coresMap[conShortId]
 			conInfo := &im.ConversationInfo{
 				ConShortId:     core.ConShortId,
 				ConId:          core.ConId,
 				ConType:        core.ConType,
+				UserConIndex:   util.Int64(userConIndexs[i]),
 				BadgeCount:     util.Int64(badgesMap[conShortId]),
 				IsMember:       util.Bool(statusMap[conShortId] == 1),
 				ConCoreInfo:    core,

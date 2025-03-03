@@ -94,11 +94,13 @@ message MessageGetByInitResponse{
 }
 
 message MessageGetByConversationRequest{
-
+  optional int64 con_short_id = 1;
+  optional int64 con_index = 2;
+  optional int64 limit = 3;
 }
 
 message MessageGetByConversationResponse{
-
+  repeated MessageBody msg_bodies = 1;
 }
 
 message MarkReadRequest{

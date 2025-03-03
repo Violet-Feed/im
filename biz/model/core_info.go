@@ -90,13 +90,16 @@ func GetCoreInfos(ctx context.Context, conShortIds []int64) (map[int64]*Conversa
 }
 
 func GetCoreInfoByConId(ctx context.Context, conId string) (*ConversationCoreInfo, error) {
-	var core *ConversationCoreInfo
-	err := dal.MysqlDB.Where("con_id = ?", conId).First(&core).Error
+	var cores []*ConversationCoreInfo
+	err := dal.MysqlDB.Where("con_id = ?", conId).First(&cores).Error
 	if err != nil {
 		logrus.Errorf("[GetCoreInfoByConId] mysql select err. err = %v", err)
 		return nil, err
 	}
-	return core, nil
+	if len(cores) == 0 {
+		return nil, nil
+	}
+	return cores[0], nil
 }
 
 func AsyncSetCoreCache(ctx context.Context, cores []*ConversationCoreInfo) {

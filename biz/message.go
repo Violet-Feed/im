@@ -78,9 +78,9 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 }
 
 func GetMessages(ctx context.Context, conShortId int64, msgIds []int64) ([]*im.MessageBody, error) {
-	keys := make([]string, len(msgIds))
+	keys := make([]string, 0)
 	for _, id := range msgIds {
-		keys = append(keys, fmt.Sprintf("%d:%d", conShortId, id))
+		keys = append(keys, fmt.Sprintf("msg:%d:%d", conShortId, id))
 	}
 	messages, err := dal.KvrocksServer.MGet(ctx, keys)
 	if err != nil {
