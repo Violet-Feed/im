@@ -197,10 +197,10 @@ func PullConversationIndex(ctx context.Context, conShortId int64, conIndex int64
 			logrus.Errorf("[PullConversationIndex] kvrocks lrange err. err = %v", err)
 			return nil, nil, err
 		}
-		for i := len(subMsgIds) - 1; i >= 0; i-- {
+		for i := 0; i < len(subMsgIds); i++ {
 			msgId, _ := strconv.ParseInt(subMsgIds[i], 10, 64)
 			msgIds = append(msgIds, msgId)
-			conIndexs = append(conIndexs, segment*SegmentLimit+int64(i))
+			conIndexs = append(conIndexs, segment*SegmentLimit+start+int64(i)+1)
 		}
 		segment--
 		limit -= stop - start + 1
@@ -224,7 +224,7 @@ func PullUserCmdIndex(ctx context.Context, userId int64, userCmdIndex int64, lim
 		return nil, 0, err
 	}
 	segment, _ := strconv.ParseInt(seg, 10, 64)
-	maxIndex := segment*SegmentLimit + length - 1
+	maxIndex := segment*SegmentLimit + length
 	if userCmdIndex > maxIndex {
 		userCmdIndex = maxIndex
 	} else {

@@ -27,7 +27,6 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			return mq.SendToRetry(ctx, "conversation", messageEvent)
 		}
 		messageEvent.Stored = util.Bool(true)
-		logrus.Infof("[ConvProcess] StoreMessage sucess")
 	}
 	//写入会话链
 	if messageEvent.GetConIndex() == 0 && messageEvent.GetMsgBody().GetMsgType() != 1000 {
@@ -37,7 +36,7 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			return mq.SendToRetry(ctx, "conversation", messageEvent)
 		}
 		messageEvent.ConIndex = util.Int64(conIndex)
-		logrus.Infof("[ConvProcess] AppendConversationIndex sucess. index = %v", messageEvent.GetConIndex())
+		messageEvent.MsgBody.ConIndex = util.Int64(conIndex)
 	}
 	//处理特殊命令消息
 	if messageEvent.GetMsgBody().GetMsgType() == 1001 {

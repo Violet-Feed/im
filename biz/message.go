@@ -56,14 +56,16 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 	//TODO：消息频率控制
 	createTime := time.Now().Unix()
 	messageBody := &im.MessageBody{
-		UserId:     req.UserId,
-		ConId:      req.ConId,
-		ConShortId: req.ConShortId,
-		ConType:    req.ConType,
-		MsgId:      util.Int64(messageId),
-		MsgType:    req.MsgType,
-		MsgContent: req.MsgContent,
-		CreateTime: util.Int64(createTime),
+		UserId:      req.UserId,
+		ConId:       req.ConId,
+		ConShortId:  req.ConShortId,
+		ConType:     req.ConType,
+		ClientMsgId: req.ClientMsgId,
+		MsgId:       util.Int64(messageId),
+		MsgType:     req.MsgType,
+		MsgContent:  req.MsgContent,
+		CreateTime:  util.Int64(createTime),
+		Extra:       util.String(""),
 	}
 	messageEvent := &im.MessageEvent{
 		MsgBody: messageBody,

@@ -74,8 +74,9 @@ message MessageSendRequest{
   optional int64 con_short_id = 1;
   optional string con_id = 2;
   optional int32 con_type = 3;
-  optional int32 msg_type = 4;
-  optional string msg_content = 5;
+  optional int64 client_msg_id = 4;
+  optional int32 msg_type = 5;
+  optional string msg_content = 6;
 }
 
 message MessageSendResponse{
@@ -117,11 +118,13 @@ message MessageBody{
   optional string con_id = 2;
   optional int64 con_short_id = 3;
   optional int32 con_type = 4;
-  optional int64 msg_id = 5;
-  optional int32 msg_type = 6;
-  optional string msg_content = 7;
-  optional int64 create_time = 8;
-  optional int64 con_index = 9;
+  optional int64 client_msg_id = 5;
+  optional int64 msg_id = 6;
+  optional int32 msg_type = 7;
+  optional string msg_content = 8;
+  optional int64 create_time = 9;
+  optional string extra = 10;
+  optional int64 con_index = 11;
 }
 
 message MessageEvent{
@@ -140,8 +143,9 @@ message SendMessageRequest{
   optional int64 con_short_id = 2;
   optional string con_id = 3;
   optional int32 con_type = 4;
-  optional int32 msg_type = 5;
-  optional string msg_content = 6;
+  optional int64 client_msg_id = 5;
+  optional int32 msg_type = 6;
+  optional string msg_content = 7;
 }
 
 message SendMessageResponse{
@@ -373,11 +377,10 @@ message PullUserCmdIndexResponse{
 message PushRequest{
   optional MessageBody msg_body = 1;
   optional int64 receiver_id = 2;
-  optional int64 con_index = 3;
+  optional int64 badge_count = 3;
   optional int64 user_con_index = 4;
   optional int64 pre_user_con_index = 5;
-  optional int64 badge_count = 6;
-  optional int64 user_cmd_index = 7;
+  optional int64 user_cmd_index = 6;
 }
 
 message PushResponse{

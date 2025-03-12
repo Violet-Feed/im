@@ -30,13 +30,22 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			messageEvent.UserConIndex = util.Int64(userConIndex)
 			messageEvent.PreUserConIndex = util.Int64(preUserConIndex)
 		}
-		if messageEvent.GetBadgeCount() == 0 && userId != messageEvent.GetMsgBody().GetUserId() {
-			badgeCount, err := biz.IncrConversationBadge(ctx, userId, messageEvent.GetMsgBody().GetConShortId())
-			if err != nil {
-				logrus.Errorf("[UserProcess] IncrConversationBadge err. err = %v", err)
-				return mq.SendToRetry(ctx, "user", messageEvent)
+		if messageEvent.GetBadgeCount() == 0 {
+			if userId != messageEvent.GetMsgBody().GetUserId() {
+				badgeCount, err := biz.IncrConversationBadge(ctx, userId, messageEvent.GetMsgBody().GetConShortId())
+				if err != nil {
+					logrus.Errorf("[UserProcess] IncrConversationBadge err. err = %v", err)
+					return mq.SendToRetry(ctx, "user", messageEvent)
+				}
+				messageEvent.BadgeCount = util.Int64(badgeCount)
+			} else {
+				badgeCount, err := biz.GetConversationBadges(ctx, userId, []int64{messageEvent.GetMsgBody().GetConShortId()})
+				if err != nil {
+					logrus.Errorf("[UserProcess] GetConversationBadges err. err = %v", err)
+					return mq.SendToRetry(ctx, "user", messageEvent)
+				}
+				messageEvent.BadgeCount = util.Int64(badgeCount[0])
 			}
-			messageEvent.BadgeCount = util.Int64(badgeCount)
 		}
 	} else if messageEvent.GetUserCmdIndex() == 0 {
 		userCmdIndex, err := biz.AppendUserCmdIndex(ctx, userId, messageEvent.GetMsgBody().GetMsgId())
@@ -49,10 +58,9 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	pushRequest := &im.PushRequest{
 		MsgBody:         messageEvent.GetMsgBody(),
 		ReceiverId:      util.Int64(userId),
-		ConIndex:        messageEvent.ConIndex,
+		BadgeCount:      messageEvent.BadgeCount,
 		UserConIndex:    messageEvent.UserConIndex,
 		PreUserConIndex: messageEvent.PreUserConIndex,
-		BadgeCount:      messageEvent.BadgeCount,
 		UserCmdIndex:    messageEvent.UserCmdIndex,
 	}
 	err := backoff.Retry(func() error {

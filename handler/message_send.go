@@ -15,6 +15,9 @@ func checkMessageSendRequest(req *im.MessageSendRequest) bool {
 	if req.GetConType() < 1 || req.GetConType() > 5 {
 		return false
 	}
+	if req.GetClientMsgId() == 0 {
+		return false
+	}
 	if req.GetMsgType() < 1 || req.GetMsgType() > 5 && req.GetMsgType() != 1000 && req.GetMsgType() != 1001 {
 		return false
 	}
@@ -39,12 +42,13 @@ func Send(c *gin.Context) {
 	userIdStr, _ := c.Get("userId")
 	userId := userIdStr.(int64)
 	sendMessageRequest := &im.SendMessageRequest{
-		UserId:     util.Int64(userId),
-		ConShortId: req.ConShortId,
-		ConId:      req.ConId,
-		ConType:    req.ConType,
-		MsgType:    req.MsgType,
-		MsgContent: req.MsgContent,
+		UserId:      util.Int64(userId),
+		ConShortId:  req.ConShortId,
+		ConId:       req.ConId,
+		ConType:     req.ConType,
+		ClientMsgId: req.ClientMsgId,
+		MsgType:     req.MsgType,
+		MsgContent:  req.MsgContent,
 	}
 	sendMessageResponse, err := biz.SendMessage(c, sendMessageRequest)
 	if err != nil {

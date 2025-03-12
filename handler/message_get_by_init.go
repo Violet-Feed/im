@@ -45,11 +45,14 @@ func GetByInit(c *gin.Context) {
 			return
 		}
 		hasMoreChan <- hasMore
-		if userConIndexs != nil {
+		if hasMore == true {
 			nextUserConIndexChan <- userConIndexs[len(userConIndexs)-1] - 1
-			userConIndexChan <- userConIndexs[0]
 		} else {
 			nextUserConIndexChan <- 0
+		}
+		if len(userConIndexs) > 0 {
+			userConIndexChan <- userConIndexs[0]
+		} else {
 			userConIndexChan <- 0
 		}
 		msgBodiesMapChan, coresMapChan, settingsMapChan := make(chan map[int64][]*im.MessageBody), make(chan map[int64]*im.ConversationCoreInfo), make(chan map[int64]*im.ConversationSettingInfo)

@@ -73,12 +73,15 @@ func CreateConversation(ctx context.Context, req *im.CreateConversationRequest) 
 }
 
 func GetConversationCores(ctx context.Context, conShortIds []int64) ([]*im.ConversationCoreInfo, error) {
+	coreInfos := make([]*im.ConversationCoreInfo, 0)
+	if len(conShortIds) == 0 {
+		return coreInfos, nil
+	}
 	coresMap, err := model.GetCoreInfos(ctx, conShortIds)
 	if err != nil {
 		logrus.Errorf("[GetConversationCores] GetCoreInfos err. err = %v", err)
 		return nil, err
 	}
-	var coreInfos []*im.ConversationCoreInfo
 	for _, id := range conShortIds {
 		coreInfos = append(coreInfos, model.PackCoreInfo(coresMap[id]))
 	}
@@ -97,6 +100,9 @@ func GetConversationCores(ctx context.Context, conShortIds []int64) ([]*im.Conve
 		}(i, conShortId)
 	}
 	for i := 0; i < len(conShortIds); i++ {
+		if coreInfos[i] == nil {
+			<-countChan[i]
+		}
 		coreInfos[i].MemberCount = util.Int32(int32(<-countChan[i]))
 	}
 	return coreInfos, nil
@@ -105,6 +111,10 @@ func GetConversationCores(ctx context.Context, conShortIds []int64) ([]*im.Conve
 }
 
 func GetConversationSettings(ctx context.Context, userId int64, conShortIds []int64) ([]*im.ConversationSettingInfo, error) {
+	settingInfos := make([]*im.ConversationSettingInfo, 0)
+	if len(conShortIds) == 0 {
+		return settingInfos, nil
+	}
 	settingModel, err := model.GetSettingInfo(ctx, userId, conShortIds)
 	if err != nil {
 		logrus.Errorf("[GetConversationSettings] GetSettingInfo err. err = %v", err)
@@ -126,7 +136,6 @@ func GetConversationSettings(ctx context.Context, userId int64, conShortIds []in
 			}
 		}
 	}
-	var settingInfos []*im.ConversationSettingInfo
 	for _, id := range conShortIds {
 		settingInfos = append(settingInfos, model.PackSettingInfo(settingModel[id]))
 	}
