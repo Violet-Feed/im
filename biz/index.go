@@ -168,20 +168,25 @@ func PullConversationIndex(ctx context.Context, conShortId int64, conIndex int64
 		return nil, nil, err
 	}
 	segment, _ := strconv.ParseInt(seg, 10, 64)
-	maxIndex := segment*SegmentLimit + length - 1
+	maxIndex := segment*SegmentLimit + length
 	if conIndex > maxIndex {
-		conIndex = maxIndex
+		conIndex = (maxIndex-1)%SegmentLimit + 1
 	} else {
-		segment = conIndex / SegmentLimit
+		segment = (conIndex - 1) / SegmentLimit
+		conIndex = (conIndex-1)%SegmentLimit + 1
 	}
 	msgIds, conIndexs := make([]int64, 0), make([]int64, 0)
 	//反向拉链
 	for limit > 0 && segment >= 0 {
 		indexKey = fmt.Sprintf("conv_index:%d:%d", conShortId, segment)
-		length, err = dal.KvrocksServer.LLen(ctx, indexKey)
-		if err != nil {
-			logrus.Errorf("[PullConversationIndex] kvrocks llen 2 err. err = %v", err)
-			return nil, nil, err
+		if len(msgIds) == 0 {
+			length = conIndex
+		} else {
+			length, err = dal.KvrocksServer.LLen(ctx, indexKey)
+			if err != nil {
+				logrus.Errorf("[PullConversationIndex] kvrocks llen 2 err. err = %v", err)
+				return nil, nil, err
+			}
 		}
 		if length == 0 && len(msgIds) > 0 {
 			return msgIds, conIndexs, nil
@@ -226,17 +231,22 @@ func PullUserCmdIndex(ctx context.Context, userId int64, userCmdIndex int64, lim
 	segment, _ := strconv.ParseInt(seg, 10, 64)
 	maxIndex := segment*SegmentLimit + length
 	if userCmdIndex > maxIndex {
-		userCmdIndex = maxIndex
+		userCmdIndex = (maxIndex-1)%SegmentLimit + 1
 	} else {
-		segment = userCmdIndex / SegmentLimit
+		segment = (userCmdIndex - 1) / SegmentLimit
+		userCmdIndex = (userCmdIndex-1)%SegmentLimit + 1
 	}
 	msgIds := make([]int64, 0)
 	for limit > 0 && segment >= 0 {
 		indexKey = fmt.Sprintf("user_cmd_index:%d:%d", userId, segment)
-		length, err = dal.KvrocksServer.LLen(ctx, indexKey)
-		if err != nil {
-			logrus.Errorf("[PullUserCmdIndex] kvrocks llen 2 err. err = %v", err)
-			return nil, 0, err
+		if len(msgIds) == 0 {
+			length = userCmdIndex
+		} else {
+			length, err = dal.KvrocksServer.LLen(ctx, indexKey)
+			if err != nil {
+				logrus.Errorf("[PullUserCmdIndex] kvrocks llen 2 err. err = %v", err)
+				return nil, 0, err
+			}
 		}
 		if length == 0 && len(msgIds) > 0 {
 			return msgIds, userCmdIndex, nil

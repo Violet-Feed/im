@@ -227,6 +227,10 @@ func IncrConversationBadge(ctx context.Context, userId int64, conShortId int64) 
 }
 
 func GetConversationBadges(ctx context.Context, userId int64, conShortIds []int64) ([]int64, error) {
+	counts := make([]int64, 0)
+	if len(conShortIds) == 0 {
+		return counts, nil
+	}
 	keys := make([]string, 0)
 	for _, id := range conShortIds {
 		key := fmt.Sprintf("badge:%d:%d", userId, id)
@@ -237,7 +241,6 @@ func GetConversationBadges(ctx context.Context, userId int64, conShortIds []int6
 		logrus.Errorf("[GetConversationBadge] kvrocks MGet err. err = %v", err)
 		return nil, err
 	}
-	counts := make([]int64, 0)
 	for _, countStr := range countStrs {
 		if countStr == "" {
 			counts = append(counts, 0)

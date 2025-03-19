@@ -1,18 +1,19 @@
 syntax = "proto3";
-option java_package = "violet.video.common.proto_gen.im";
+package im;
+option java_multiple_files = true;
+option java_package = "violet.gateway.common.proto_gen.im";
 option go_package = "/proto_gen/im";
 
-//TODO:constant
 enum StatusCode{
   StatusCode_Not_Use = 0;
   Success = 1000;
   Server_Error = 1001;
   Param_Error = 1002;
   OverFrequency_Error = 1003;
-  OverLimit_Error=1004;
-  Duplicate_Error=1005;
-  RetryTime_Error=1006;
-  Not_Found_Error=1007;
+  OverLimit_Error = 1004;
+  Duplicate_Error = 1005;
+  RetryTime_Error = 1006;
+  Not_Found_Error = 1007;
 }
 
 enum ConversationType{
@@ -31,7 +32,7 @@ enum MessageType{
   Video = 3;
   Forward = 4;
   Cmd = 1000;
-  SpecialCmd=1001;
+  SpecialCmd = 1001;
 }
 
 enum CommandType{
@@ -48,26 +49,25 @@ enum SpecialCommandType{
 }
 
 message BaseResp{
-   StatusCode StatusCode = 1;
-   string StatusMessage = 2;
+  StatusCode StatusCode = 1;
+  string StatusMessage = 2;
 }
 
-//TODO:http
 message ConversationInfo{
-  optional int64 con_short_id=1;
-  optional string con_id=2;
-  optional int32 con_type=3;
-  optional int64 user_con_index=4;
-  optional int64 badge_count=5;
-  optional bool is_member=6;
-  repeated ConversationUserInfo members=7;
-  optional ConversationCoreInfo con_core_info=8;
-  optional ConversationSettingInfo con_setting_info=9;
+  optional int64 con_short_id = 1;
+  optional string con_id = 2;
+  optional int32 con_type = 3;
+  optional int64 user_con_index = 4;
+  optional int64 badge_count = 5;
+  optional bool is_member = 6;
+  repeated ConversationUserInfo members = 7;
+  optional ConversationCoreInfo con_core_info = 8;
+  optional ConversationSettingInfo con_setting_info = 9;
 }
 
 message ConversationMessage{
-  optional ConversationInfo con_info=1;
-  repeated MessageBody msg_bodies=2;
+  optional ConversationInfo con_info = 1;
+  repeated MessageBody msg_bodies = 2;
 }
 
 message MessageSendRequest{
@@ -78,14 +78,12 @@ message MessageSendRequest{
   optional int32 msg_type = 5;
   optional string msg_content = 6;
 }
-
 message MessageSendResponse{
 }
 
 message MessageGetByInitRequest{
   optional int64 user_con_index = 1;
 }
-
 message MessageGetByInitResponse{
   repeated ConversationMessage cons = 1;
   optional bool has_more = 2;
@@ -99,20 +97,20 @@ message MessageGetByConversationRequest{
   optional int64 con_index = 2;
   optional int64 limit = 3;
 }
-
 message MessageGetByConversationResponse{
   repeated MessageBody msg_bodies = 1;
 }
 
 message MarkReadRequest{
-
+  optional int64 user_id = 1;
+  optional int64 con_short_id = 2;
+  optional int64 read_con_index = 3;
+  optional int64 read_badge_count = 4;
 }
-
 message MarkReadResponse{
-
+  optional BaseResp baseResp = 255;
 }
 
-//TODO:message proto
 message MessageBody{
   optional int64 user_id = 1;
   optional string con_id = 2;
@@ -147,69 +145,50 @@ message SendMessageRequest{
   optional int32 msg_type = 6;
   optional string msg_content = 7;
 }
-
 message SendMessageResponse{
   optional BaseResp baseResp = 255;
 }
 
-message GetMessagesRequest{
-  optional int64 con_short_id = 1;
-  repeated int64 msg_ids = 2;
-}
-
-message GetMessagesResponse{
-  repeated MessageBody msg_bodies = 1;
-  optional BaseResp baseResp = 255;
-}
-
-message SaveMessageRequest{
-  optional MessageBody msg_body = 1;
-}
-
-message SaveMessageResponse{
-  optional BaseResp baseResp = 255;
-}
-//TODO:conversation proto
 message ConversationCoreInfo {
-  optional int64 con_short_id=1;
-  optional string con_id=2;
-  optional int32 con_type=3;
-  optional string name=4;
-  optional string avatar_uri=5;
-  optional string description=6;
-  optional string notice=7;
-  optional int64 owner_id=8;
-  optional int64 create_time=9;
-  optional int64 modify_time=10;
-  optional int32 status=11;
-  optional string extra=12;
-  optional int32 member_count=13;
+  optional int64 con_short_id = 1;
+  optional string con_id = 2;
+  optional int32 con_type = 3;
+  optional string name = 4;
+  optional string avatar_uri = 5;
+  optional string description = 6;
+  optional string notice = 7;
+  optional int64 owner_id = 8;
+  optional int64 create_time = 9;
+  optional int64 modify_time = 10;
+  optional int32 status = 11;
+  optional string extra = 12;
+  optional int32 member_count = 13;
 }
 
 message ConversationSettingInfo{
-  optional int64 user_id=1;
-  optional int64 con_short_id=2;
-  optional int32 con_type=3;
-  optional int64 min_index=4;
-  optional int64 top_time_stamp=5;
-  optional int32 push_status=6;
-  optional int64 modify_time=7;
-  optional string extra=8;
-  optional int64 read_index_end=9;
-  optional int64 read_badge_count=10;
+  optional int64 user_id = 1;
+  optional int64 con_short_id = 2;
+  optional int32 con_type = 3;
+  optional int64 min_index = 4;
+  optional int64 top_time_stamp = 5;
+  optional int32 push_status = 6;
+  optional int64 modify_time = 7;
+  optional string extra = 8;
+  optional int64 read_index_end = 9;
+  optional int64 read_badge_count = 10;
 }
 
 message ConversationUserInfo {
-  optional int64 con_short_id=1;
-  optional int64 user_id=2;
-  optional int32 privilege=3;
-  optional string nick_name=4;
-  optional int64 block_time_stamp=5;
-  optional int64 operator=6;
-  optional int64 create_time=7;
-  optional int64 modify_time=8;
-  optional int32 status=9;
-  optional string extra=10;
+  optional int64 con_short_id = 1;
+  optional int64 user_id = 2;
+  optional int32 privilege = 3;
+  optional string nick_name = 4;
+  optional int64 block_time_stamp = 5;
+  optional int64 operator = 6;
+  optional int64 create_time = 7;
+  optional int64 modify_time = 8;
+  optional int32 status = 9;
+  optional string extra = 10;
 }
 
 message CreateConversationRequest{
@@ -220,160 +199,36 @@ message CreateConversationRequest{
   optional string description = 5;
   optional string notice = 6;
   optional int64 owner_id = 7;
-  repeated int64 members=8;
+  repeated int64 members = 8;
   optional string extra = 9;
 }
-
 message CreateConversationResponse{
   optional ConversationCoreInfo con_info = 1;
   optional BaseResp baseResp = 255;
 }
 
-message GetConversationCoresRequest{
-  repeated int64 con_short_ids=1;
-}
-
-message GetConversationCoresResponse{
-  repeated ConversationCoreInfo core_infos=1;
-  optional BaseResp baseResp = 255;
-}
-
-message GetConversationSettingsRequest{
-  optional int64 user_id=1;
-  repeated int64 con_short_ids=2;
-}
-
-message GetConversationSettingsResponse{
-  repeated ConversationSettingInfo setting_infos=1;
-  optional BaseResp baseResp = 255;
-}
-
 message GetConversationMembersRequest{
-  optional int64 con_short_id=1;
-  optional int64 cursor=2;
-  optional int64 limit=3;
-  optional bool only_id=4;
+  optional int64 con_short_id = 1;
+  optional int64 cursor = 2;
+  optional int64 limit = 3;
+  optional bool only_id = 4;
 }
-
 message GetConversationMemberResponse{
-  repeated ConversationUserInfo user_infos=1;
-  optional int64 next_cursor=2;
+  repeated ConversationUserInfo user_infos = 1;
+  optional int64 next_cursor = 2;
   optional BaseResp baseResp = 255;
 }
 
 message AddConversationMembersRequest{
-  optional int64 con_short_id=1;
-  optional string con_id=2;
-  repeated int64 members=3;
-  optional int64 operator=4;
+  optional int64 con_short_id = 1;
+  optional string con_id = 2;
+  repeated int64 members = 3;
+  optional int64 operator = 4;
 }
-
 message AddConversationMembersResponse{
   optional BaseResp baseResp = 255;
 }
 
-message IncrConversationBadgeRequest{
-  optional int64 user_id = 1;
-  optional int64 con_short_id = 2;
-}
-
-message IncrConversationBadgeResponse{
-  optional int64 badge_count = 1;
-  optional BaseResp baseResp = 255;
-}
-
-message GetConversationBadgesRequest{
-  optional int64 user_id = 1;
-  repeated int64 con_short_ids = 2;
-}
-
-message GetConversationBadgesResponse{
-  repeated int64 badge_counts = 1;
-  optional BaseResp baseResp = 255;
-}
-
-message SetReadInfoRequest{
-  optional int64 user_id=1;
-  optional int64 con_short_id=2;
-  optional int64 read_index_start=3;
-  optional int64 read_index_end=4;
-  optional int64 read_badge_count=5;
-}
-
-message SetReadInfoResponse{
-  optional BaseResp baseResp = 255;
-}
-
-//TODO:index proto
-message AppendConversationIndexRequest{
-  optional int64 con_short_id = 1;
-  optional int64 msg_id = 2;
-}
-
-message AppendConversationIndexResponse{
-  optional int64 con_index = 1;
-  optional BaseResp baseResp = 255;
-}
-
-message PullConversationIndexRequest{
-  optional int64 con_short_id = 1;
-  optional int64 con_index = 2;
-  optional int64 limit = 3;
-}
-
-message PullConversationIndexResponse{
-  repeated int64 msg_ids = 1;
-  optional int64 last_con_index = 2;
-  optional BaseResp baseResp = 255;
-}
-
-message AppendUserConIndexRequest{
-  optional int64 user_id = 1;
-  optional int64 con_short_id = 2;
-}
-
-message AppendUserConIndexResponse{
-  optional int64 user_con_index = 1;
-  optional int64 pre_user_con_index = 2;
-  optional BaseResp baseResp = 255;
-}
-
-message PullUserConIndexRequest{
-  optional int64 user_id = 1;
-  optional int64 user_con_index = 2;
-  optional int64 limit = 3;
-}
-
-message PullUserConIndexResponse{
-  repeated int64 con_short_ids = 1;
-  optional int64 last_user_con_index = 2;
-  optional int64 next_user_con_index = 3;
-  optional bool has_more = 4;
-  optional BaseResp baseResp = 255;
-}
-
-message AppendUserCmdIndexRequest{
-  optional int64 user_id = 1;
-  optional int64 msg_id = 2;
-}
-
-message AppendUserCmdIndexResponse{
-  optional int64 user_cmd_index = 1;
-  optional BaseResp baseResp = 255;
-}
-
-message PullUserCmdIndexRequest{
-  optional int64 user_id = 1;
-  optional int64 user_cmd_index = 2;
-  optional int64 limit = 3;
-}
-
-message PullUserCmdIndexResponse{
-  repeated int64 msg_ids = 1;
-  optional int64 last_user_cmd_index = 2;
-  optional BaseResp baseResp = 255;
-}
-//TODO:push
 message PushRequest{
   optional MessageBody msg_body = 1;
   optional int64 receiver_id = 2;
@@ -382,7 +237,16 @@ message PushRequest{
   optional int64 pre_user_con_index = 5;
   optional int64 user_cmd_index = 6;
 }
-
 message PushResponse{
   optional BaseResp baseResp = 255;
+}
+
+service IMService{
+  rpc SendMessage(SendMessageRequest)returns(SendMessageResponse);
+  rpc MessageGetByInit(MessageGetByInitRequest)returns(MessageGetByInitResponse);
+  rpc MessageGetByConversation(MessageGetByConversationRequest)returns(MessageGetByConversationResponse);
+  rpc MarkRead(MarkReadRequest)returns(MarkReadResponse);
+  rpc CreateConversation(CreateConversationRequest)returns(CreateConversationResponse);
+  rpc GetConversationMembers(GetConversationMembersRequest)returns(GetConversationMemberResponse);
+  rpc AddConversationMembers(AddConversationMembersRequest)returns(AddConversationMembersResponse);
 }

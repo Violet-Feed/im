@@ -16,7 +16,7 @@ import (
 
 type ConnInfo struct {
 	UserId   int64  `json:"user_id"`
-	DeviceId int64  `json:"device_id"`
+	DeviceId string `json:"device_id"`
 	Platform string `json:"platform"`
 }
 
@@ -43,9 +43,11 @@ func WebsocketHandler(c *gin.Context) {
 	defer biz.Connections.Delete(connId)
 
 	userIdStr, _ := c.Get("userId")
+	deviceId, _ := c.Get("deviceId")
+	platform, _ := c.Get("platform")
 	userId := userIdStr.(int64)
 	key := fmt.Sprintf("conn:%d", userId)
-	connInfo, _ := json.Marshal(ConnInfo{UserId: userId})
+	connInfo, _ := json.Marshal(ConnInfo{UserId: userId, DeviceId: deviceId.(string), Platform: platform.(string)})
 	err = dal.RedisServer.HSet(c, key, connId, connInfo)
 	if err != nil {
 		logrus.Errorf("[WebsocketHandler] redis hset err. err = %v", err)

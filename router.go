@@ -34,7 +34,9 @@ func authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if len(c.Request.URL.Path) >= len("/api/im/ws") && c.Request.URL.Path[:len("/api/im/ws")] == "/api/im/ws" {
 			token := c.Query("token")
-			if token == "" {
+			deviceId := c.Query("device_id")
+			platform := c.Query("platform")
+			if token == "" || deviceId == "" || platform == "" {
 				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden: Missing token"})
 				return
 			}
@@ -44,6 +46,8 @@ func authMiddleware() gin.HandlerFunc {
 				return
 			}
 			c.Set("userId", userId)
+			c.Set("deviceId", deviceId)
+			c.Set("platform", platform)
 			c.Next()
 		}
 		token := c.GetHeader("Authorization")

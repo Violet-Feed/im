@@ -192,10 +192,10 @@ func (r *RedisServiceImpl) Lock(ctx context.Context, key string) bool {
 			return true
 		}
 		retry++
-		if retry > 3 {
+		if retry > 2 {
 			return false
 		}
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(20 * time.Millisecond)
 	}
 }
 

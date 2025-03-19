@@ -78,9 +78,6 @@ func (k *KvrocksServiceImpl) Get(ctx context.Context, key string) (string, error
 }
 
 func (k *KvrocksServiceImpl) MGet(ctx context.Context, keys []string) ([]string, error) {
-	if len(keys) == 0 {
-		return nil, nil
-	}
 	resInters, err := k.client.MGet(ctx, keys...).Result()
 	if err != nil {
 		logrus.Errorf("kvrocks mget err. err = %v", err)

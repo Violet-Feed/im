@@ -80,6 +80,10 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 }
 
 func GetMessages(ctx context.Context, conShortId int64, msgIds []int64) ([]*im.MessageBody, error) {
+	messageBodies := make([]*im.MessageBody, 0)
+	if len(msgIds) == 0 {
+		return messageBodies, nil
+	}
 	keys := make([]string, 0)
 	for _, id := range msgIds {
 		keys = append(keys, fmt.Sprintf("msg:%d:%d", conShortId, id))
@@ -89,7 +93,6 @@ func GetMessages(ctx context.Context, conShortId int64, msgIds []int64) ([]*im.M
 		logrus.Errorf("[GetMessages] kvrocks mget err. err = %v", err)
 		return nil, err
 	}
-	var messageBodies []*im.MessageBody
 	for _, message := range messages {
 		var messageBody im.MessageBody
 		_ = json.Unmarshal([]byte(message), &messageBody)
