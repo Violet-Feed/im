@@ -4,17 +4,7 @@ option java_multiple_files = true;
 option java_package = "violet.gateway.common.proto_gen.im";
 option go_package = "/proto_gen/im";
 
-enum StatusCode{
-  StatusCode_Not_Use = 0;
-  Success = 1000;
-  Server_Error = 1001;
-  Param_Error = 1002;
-  OverFrequency_Error = 1003;
-  OverLimit_Error = 1004;
-  Duplicate_Error = 1005;
-  RetryTime_Error = 1006;
-  Not_Found_Error = 1007;
-}
+import "proto/common.proto";
 
 enum ConversationType{
   ConversationType_Not_Use = 0;
@@ -46,11 +36,6 @@ enum SpecialCommandType{
   Update_Conversation = 3;
   Add_Members = 4;
   Remove_Members = 5;
-}
-
-message BaseResp{
-  StatusCode StatusCode = 1;
-  string StatusMessage = 2;
 }
 
 message ConversationInfo{
@@ -108,7 +93,7 @@ message MarkReadRequest{
   optional int64 read_badge_count = 4;
 }
 message MarkReadResponse{
-  optional BaseResp baseResp = 255;
+  optional common.BaseResp baseResp = 255;
 }
 
 message MessageBody{
@@ -146,7 +131,7 @@ message SendMessageRequest{
   optional string msg_content = 7;
 }
 message SendMessageResponse{
-  optional BaseResp baseResp = 255;
+  optional common.BaseResp baseResp = 255;
 }
 
 message ConversationCoreInfo {
@@ -204,7 +189,7 @@ message CreateConversationRequest{
 }
 message CreateConversationResponse{
   optional ConversationCoreInfo con_info = 1;
-  optional BaseResp baseResp = 255;
+  optional common.BaseResp baseResp = 255;
 }
 
 message GetConversationMembersRequest{
@@ -216,7 +201,7 @@ message GetConversationMembersRequest{
 message GetConversationMemberResponse{
   repeated ConversationUserInfo user_infos = 1;
   optional int64 next_cursor = 2;
-  optional BaseResp baseResp = 255;
+  optional common.BaseResp baseResp = 255;
 }
 
 message AddConversationMembersRequest{
@@ -226,7 +211,7 @@ message AddConversationMembersRequest{
   optional int64 operator = 4;
 }
 message AddConversationMembersResponse{
-  optional BaseResp baseResp = 255;
+  optional common.BaseResp baseResp = 255;
 }
 
 message PushRequest{
@@ -238,7 +223,7 @@ message PushRequest{
   optional int64 user_cmd_index = 6;
 }
 message PushResponse{
-  optional BaseResp baseResp = 255;
+  optional common.BaseResp baseResp = 255;
 }
 
 service IMService{

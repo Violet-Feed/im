@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"im/consumer"
 	"im/dal"
-	demo "im/proto_gen"
+	"im/proto_gen/im"
 	"net"
 )
 
@@ -36,17 +36,17 @@ func main() {
 	go func() {
 		r := gin.Default()
 		r = Router(r)
-		if err := r.Run(":3001"); err != nil {
+		if err := r.Run(":3010"); err != nil {
 			logrus.Fatalf("[main] gin run err. err = %v", err)
 		}
 	}()
 
-	lis, err := net.Listen("tcp", ":3011")
+	lis, err := net.Listen("tcp", ":3003")
 	if err != nil {
 		logrus.Fatalf("[main] grpc listen err. err = %v", err)
 	}
 	s := grpc.NewServer()
-	demo.RegisterDemoServer(s, &DemoServerImpl{})
+	im.RegisterIMServiceServer(s, &IMServerImpl{})
 	reflection.Register(s)
 	if err := s.Serve(lis); err != nil {
 		logrus.Fatalf("[main] grpc run err. err = %v", err)

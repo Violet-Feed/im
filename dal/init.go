@@ -9,14 +9,14 @@ import (
 )
 
 var (
-	DemoServer    rpc.DemoServiceImpl
+	ActionServer  rpc.ActionServiceImpl
 	RedisServer   redis.RedisServiceImpl
 	KvrocksServer kvrocks.KvrocksServiceImpl
 	MysqlDB       *gorm.DB
 )
 
 func InitService() {
-	DemoServer = rpc.NewDemoServiceImpl()
+	ActionServer = rpc.NewActionServiceImpl()
 	RedisServer = redis.NewRedisServiceImpl()
 	KvrocksServer = kvrocks.NewKvrocksServiceImpl()
 	MysqlDB = mysql.NewMysqlDB()

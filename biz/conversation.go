@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"im/biz/model"
 	"im/dal"
+	"im/proto_gen/common"
 	"im/proto_gen/im"
 	"im/util"
 	"strconv"
@@ -16,7 +17,7 @@ import (
 
 func CreateConversation(ctx context.Context, req *im.CreateConversationRequest) (resp *im.CreateConversationResponse, err error) {
 	resp = &im.CreateConversationResponse{
-		BaseResp: &im.BaseResp{StatusCode: im.StatusCode_Success},
+		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
 	}
 	conShortId := util.ConIdGenerator.Generate().Int64()
 	if req.GetConType() == int32(im.ConversationType_One_Chat) {
@@ -24,7 +25,7 @@ func CreateConversation(ctx context.Context, req *im.CreateConversationRequest) 
 		core, err := model.GetCoreInfoByConId(ctx, req.GetConId())
 		if err != nil {
 			logrus.Errorf("[CreateConversation] GetCoreInfoByConId err. err = %v", err)
-			resp.BaseResp.StatusCode = im.StatusCode_Server_Error
+			resp.BaseResp.StatusCode = common.StatusCode_Server_Error
 			return resp, err
 		}
 		if core != nil {
@@ -37,7 +38,7 @@ func CreateConversation(ctx context.Context, req *im.CreateConversationRequest) 
 	err = model.InsertCoreInfo(ctx, coreModel)
 	if err != nil {
 		logrus.Errorf("[CreateConversation] InsertCoreInfo err. err = %v", err)
-		resp.BaseResp.StatusCode = im.StatusCode_Server_Error
+		resp.BaseResp.StatusCode = common.StatusCode_Server_Error
 		return resp, err
 	}
 	if req.GetConType() == int32(im.ConversationType_One_Chat) {
@@ -61,7 +62,7 @@ func CreateConversation(ctx context.Context, req *im.CreateConversationRequest) 
 		})
 		if err != nil {
 			logrus.Errorf("[CreateConversation] AddConversationMembers err. err = %v", err)
-			resp.BaseResp.StatusCode = im.StatusCode_Server_Error
+			resp.BaseResp.StatusCode = common.StatusCode_Server_Error
 			return resp, err
 		}
 		//暂时不发命令消息

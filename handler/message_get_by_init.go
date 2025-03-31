@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"im/biz"
+	"im/proto_gen/common"
 	"im/proto_gen/im"
 	"im/util"
 	"math"
@@ -20,7 +21,7 @@ func GetByInit(c *gin.Context) {
 	var req *im.MessageGetByInitRequest
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		c.JSON(http.StatusOK, im.StatusCode_Param_Error)
+		c.JSON(http.StatusOK, common.StatusCode_Param_Error)
 		return
 	}
 	userIdStr, _ := c.Get("userId")
@@ -216,7 +217,7 @@ func GetByInit(c *gin.Context) {
 	if globalErr != nil {
 		logrus.Errorf("[GetByInit] happend err.")
 		c.JSON(http.StatusOK, HttpResponse{
-			Code:    im.StatusCode_Server_Error,
+			Code:    common.StatusCode_Server_Error,
 			Message: "server err",
 			Data:    resp,
 		})
@@ -228,7 +229,7 @@ func GetByInit(c *gin.Context) {
 	resp.UserConIndex = util.Int64(userConIndex)
 	resp.UserCmdIndex = util.Int64(userCmdIndex)
 	c.JSON(http.StatusOK, HttpResponse{
-		Code:    im.StatusCode_Success,
+		Code:    common.StatusCode_Success,
 		Message: "success",
 		Data:    resp,
 	})

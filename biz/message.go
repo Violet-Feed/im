@@ -7,6 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"im/dal"
 	"im/dal/mq"
+	"im/proto_gen/common"
 	"im/proto_gen/im"
 	"im/util"
 	"strconv"
@@ -16,7 +17,7 @@ import (
 
 func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.SendMessageResponse, err error) {
 	resp = &im.SendMessageResponse{
-		BaseResp: &im.BaseResp{StatusCode: im.StatusCode_Success},
+		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
 	}
 	messageId := util.MsgIdGenerator.Generate().Int64()
 	//是否群成员
@@ -27,13 +28,13 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 		status, err := IsGroupsMember(ctx, []int64{req.GetConShortId()}, req.GetUserId())
 		if err != nil {
 			logrus.Errorf("[SendMessage] IsConversationMembers err. err = %v", err)
-			resp.BaseResp.StatusCode = im.StatusCode_Server_Error
+			resp.BaseResp.StatusCode = common.StatusCode_Server_Error
 			return resp, err
 		}
 		isMember = status[0]
 	}
 	if isMember != 1 {
-		resp.BaseResp.StatusCode = im.StatusCode_Not_Found_Error
+		resp.BaseResp.StatusCode = common.StatusCode_Not_Found_Error
 		return resp, nil
 	}
 	if req.GetConType() == int32(im.ConversationType_One_Chat) && req.GetConShortId() == 0 { //创建会话
@@ -48,7 +49,7 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 		createConversationResponse, err := CreateConversation(ctx, createConversationRequest)
 		if err != nil {
 			logrus.Errorf("[SendMessage] CreateConversation err. err = %v", err)
-			resp.BaseResp.StatusCode = im.StatusCode_Server_Error
+			resp.BaseResp.StatusCode = common.StatusCode_Server_Error
 			return resp, err
 		}
 		req.ConShortId = createConversationResponse.ConInfo.ConShortId
@@ -73,7 +74,7 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 	err = mq.SendToMq(ctx, "conversation", strconv.FormatInt(req.GetConShortId(), 10), messageEvent)
 	if err != nil {
 		logrus.Errorf("[SendMessage] SendToMq err. err = %v", err)
-		resp.BaseResp.StatusCode = im.StatusCode_Server_Error
+		resp.BaseResp.StatusCode = common.StatusCode_Server_Error
 		return resp, err
 	}
 	return resp, nil

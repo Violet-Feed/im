@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"im/dal"
+	"im/proto_gen/common"
 	"im/proto_gen/im"
 	"sync"
 )
@@ -15,7 +16,7 @@ var Connections sync.Map
 
 func Push(ctx context.Context, req *im.PushRequest) (resp *im.PushResponse, err error) {
 	resp = &im.PushResponse{
-		BaseResp: &im.BaseResp{StatusCode: im.StatusCode_Success},
+		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
 	}
 	message, _ := json.Marshal(req)
 	userId := req.GetReceiverId()
@@ -23,7 +24,7 @@ func Push(ctx context.Context, req *im.PushRequest) (resp *im.PushResponse, err 
 	conns, err := dal.RedisServer.HGetAll(ctx, key)
 	if err != nil {
 		logrus.Errorf("[Push] redid HGetAll err. err = %v", err)
-		resp.BaseResp.StatusCode = im.StatusCode_Server_Error
+		resp.BaseResp.StatusCode = common.StatusCode_Server_Error
 		return nil, err
 	}
 	for connId, connInfo := range conns {

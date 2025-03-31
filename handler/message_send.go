@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"im/biz"
+	"im/proto_gen/common"
 	"im/proto_gen/im"
 	"im/util"
 	"net/http"
@@ -33,7 +34,7 @@ func Send(c *gin.Context) {
 	err := c.ShouldBindJSON(&req)
 	if err != nil || !checkMessageSendRequest(req) {
 		c.JSON(http.StatusOK, HttpResponse{
-			Code:    im.StatusCode_Param_Error,
+			Code:    common.StatusCode_Param_Error,
 			Message: "param error",
 			Data:    resp,
 		})
@@ -60,7 +61,7 @@ func Send(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, HttpResponse{
-		Code:    im.StatusCode_Success,
+		Code:    common.StatusCode_Success,
 		Message: "success",
 		Data:    resp,
 	})

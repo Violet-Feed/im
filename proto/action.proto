@@ -1,0 +1,106 @@
+syntax = "proto3";
+package action;
+option java_multiple_files = true;
+option java_package = "violet.action.common.proto_gen.action";
+option go_package = "/proto_gen/action";
+
+import "proto/common.proto";
+
+message LoginRequest{
+  string username = 1;
+  string password = 2;
+}
+message LoginResponse{
+  int64 user_id = 1;
+  common.BaseResp baseResp = 255;
+}
+
+message RegisterRequest{
+  string username = 1;
+  string password = 2;
+  string confirm_password = 3;
+}
+message RegisterResponse{
+  common.BaseResp baseResp = 255;
+}
+
+message UserInfo{
+  int64 user_id = 1;
+  string username = 2;
+  string avatar = 3;
+}
+
+message GetUserInfosRequest{
+  repeated int64 user_ids = 1;
+}
+message GetUserInfosResponse{
+  repeated UserInfo user_infos = 1;
+  common.BaseResp baseResp = 255;
+}
+
+message SearchUsersRequest{
+  string keyword = 1;
+}
+message SearchUsersResponse{
+  repeated UserInfo user_infos = 1;
+  common.BaseResp baseResp = 255;
+}
+
+message FollowRequest{
+  int64 from_user_id = 1;
+  int64 to_user_id = 2;
+}
+message FollowResponse{
+  common.BaseResp baseResp = 255;
+}
+
+message MIsFollowRequest{
+  int64 from_user_id = 1;
+  repeated int64 to_user_ids = 2;
+}
+message MIsFollowResponse{
+  map<int64, bool> is_following = 1;
+  map<int64, bool> is_follower = 2;
+  common.BaseResp baseResp = 255;
+}
+
+message GetFollowListRequest{
+  int64 user_id = 1;
+  int64 min_time = 2;
+  int64 max_time = 3;
+  int64 count = 4;
+}
+message GetFollowListResponse{
+  repeated int64 user_ids = 1;
+  int64 total = 2;
+  bool has_more = 3;
+  common.BaseResp baseResp = 255;
+}
+
+message MGetFollowCountRequest{
+  repeated int64 user_ids = 1;
+  bool need_following = 2;
+  bool need_follower = 3;
+  bool need_friend = 4;
+}
+message MGetFollowCountResponse{
+  map<int64, int64> following_count = 1;
+  map<int64, int64> follower_count = 2;
+  map<int64, int64> friend_count = 3;
+  common.BaseResp baseResp = 255;
+}
+
+service ActionService {
+  rpc Login(LoginRequest)returns(LoginResponse){}
+  rpc Register(RegisterRequest)returns(RegisterResponse){}
+  rpc GetUserInfos(GetUserInfosRequest)returns(GetUserInfosResponse){}
+  rpc SearchUsers(SearchUsersRequest)returns(SearchUsersResponse){}
+  rpc Follow(FollowRequest)returns(FollowResponse){}
+  rpc Unfollow(FollowRequest)returns(FollowResponse){}
+  rpc MIsFollowing(MIsFollowRequest)returns(MIsFollowResponse){}
+  rpc MIsFollower(MIsFollowRequest)returns(MIsFollowResponse){}
+  rpc GetFollowingList(GetFollowListRequest)returns(GetFollowListResponse){}
+  rpc GetFollowerList(GetFollowListRequest)returns(GetFollowListResponse){}
+  rpc GetFriendList(GetFollowListRequest)returns(GetFollowListResponse){}
+  rpc GetFollowCount(MGetFollowCountRequest)returns(MGetFollowCountResponse){}
+}

@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"im/biz"
+	"im/proto_gen/common"
 	"im/proto_gen/im"
 	"im/util"
 	"net/http"
@@ -13,19 +14,19 @@ func GetByConversation(c *gin.Context) {
 	var req *im.MessageGetByConversationRequest
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		c.JSON(http.StatusOK, im.StatusCode_Param_Error)
+		c.JSON(http.StatusOK, common.StatusCode_Param_Error)
 		return
 	}
 	userIdStr, _ := c.Get("userId")
 	userId := userIdStr.(int64)
 
-	cores,err:=biz.GetConversationCores(c,[]int64{req.GetConShortId()})
-	if err!=nil{
-		c.JSON(http.StatusOK,im.StatusCode_Server_Error)
+	cores, err := biz.GetConversationCores(c, []int64{req.GetConShortId()})
+	if err != nil {
+		c.JSON(http.StatusOK, common.StatusCode_Server_Error)
 		return
 	}
-	if len(cores)==0||cores[0].GetStatus()!=0{
-		c.JSON(http.StatusOK,im.StatusCode_Not_Found_Error)
+	if len(cores) == 0 || cores[0].GetStatus() != 0 {
+		c.JSON(http.StatusOK, common.StatusCode_Not_Found_Error)
 		return
 	}
 	//是否群成员
@@ -35,32 +36,32 @@ func GetByConversation(c *gin.Context) {
 	} else if cores[0].GetConType() == int32(im.ConversationType_Group_Chat) {
 		status, err := biz.IsGroupsMember(c, []int64{req.GetConShortId()}, userId)
 		if err != nil {
-			c.JSON(http.StatusOK,im.StatusCode_Server_Error)
+			c.JSON(http.StatusOK, common.StatusCode_Server_Error)
 			return
 		}
 		isMember = status[0]
 	}
 	if isMember != 1 {
-		c.JSON(http.StatusOK,im.StatusCode_Not_Found_Error)
+		c.JSON(http.StatusOK, common.StatusCode_Not_Found_Error)
 		return
 	}
 	//拉取会话链
 	msgIds, conIndexs, err := biz.PullConversationIndex(c, req.GetConShortId(), req.GetConIndex(), req.GetLimit())
 	if err != nil {
-		c.JSON(http.StatusOK,im.StatusCode_Server_Error)
+		c.JSON(http.StatusOK, common.StatusCode_Server_Error)
 		return
 	}
-	msgBodies, err := biz.GetMessages(c,  req.GetConShortId(), msgIds)
+	msgBodies, err := biz.GetMessages(c, req.GetConShortId(), msgIds)
 	if err != nil {
-		c.JSON(http.StatusOK,im.StatusCode_Server_Error)
+		c.JSON(http.StatusOK, common.StatusCode_Server_Error)
 		return
 	}
 	for i, msgBody := range msgBodies {
 		msgBody.ConIndex = util.Int64(conIndexs[i])
 	}
 	resp.MsgBodies = msgBodies
-	c.JSON(http.StatusOK,HttpResponse{
-		Code:    im.StatusCode_Success,
+	c.JSON(http.StatusOK, HttpResponse{
+		Code:    common.StatusCode_Success,
 		Message: "success",
 		Data:    resp,
 	})

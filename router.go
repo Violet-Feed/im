@@ -75,9 +75,7 @@ func Router(r *gin.Engine) *gin.Engine {
 	r.Use(authMiddleware())
 	im := r.Group("/api/im")
 	{
-		im.GET("/rpc", handler.GetMessage)
 		im.GET("/ws", handler.WebsocketHandler)
-
 		message := im.Group("/message")
 		{
 			message.POST("/send", handler.Send)
