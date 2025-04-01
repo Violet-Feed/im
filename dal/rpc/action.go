@@ -17,9 +17,9 @@ type ActionServiceImpl struct {
 }
 
 func NewActionServiceImpl() ActionServiceImpl {
-	actionServiceClient, err := grpc.NewClient("127.0.0.1:3002", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	actionServiceClient, err := grpc.NewClient("127.0.0.1:3003", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		logrus.Fatalf("[NewDemoServiceImpl] rpc connect err. err = %v", err)
+		logrus.Fatalf("[NewActionServiceImpl] rpc connect err. err = %v", err)
 	}
 	return ActionServiceImpl{client: action.NewActionServiceClient(actionServiceClient)}
 }

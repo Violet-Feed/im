@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"im/handler"
 	"im/proto_gen/im"
 )
 
@@ -10,19 +11,19 @@ type IMServerImpl struct {
 }
 
 func (s *IMServerImpl) SendMessage(ctx context.Context, req *im.SendMessageRequest) (*im.SendMessageResponse, error) {
-	return &im.SendMessageResponse{}, nil
+	return handler.SendMessage(ctx, req), nil
 }
 
-func (s *IMServerImpl) MessageGetByInit(ctx context.Context, req *im.MessageGetByInitRequest) (*im.MessageGetByInitResponse, error) {
-	return &im.MessageGetByInitResponse{}, nil
+func (s *IMServerImpl) GetMessageByInit(ctx context.Context, req *im.GetMessageByInitRequest) (*im.GetMessageByInitResponse, error) {
+	return handler.GetMessageByInit(ctx, req), nil
 }
 
-func (s *IMServerImpl) MessageGetByConversation(ctx context.Context, req *im.MessageGetByConversationRequest) (*im.MessageGetByConversationResponse, error) {
-	return &im.MessageGetByConversationResponse{}, nil
+func (s *IMServerImpl) GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversationRequest) (*im.GetMessageByConversationResponse, error) {
+	return handler.GetMessageByConversation(ctx, req), nil
 }
 
 func (s *IMServerImpl) MarkRead(ctx context.Context, req *im.MarkReadRequest) (*im.MarkReadResponse, error) {
-	return &im.MarkReadResponse{}, nil
+	return handler.MarkRead(ctx, req), nil
 }
 
 func (s *IMServerImpl) CreateConversation(ctx context.Context, req *im.CreateConversationRequest) (*im.CreateConversationResponse, error) {

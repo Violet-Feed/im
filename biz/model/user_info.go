@@ -8,7 +8,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"im/dal"
 	"im/proto_gen/im"
-	"im/util"
 	"strconv"
 	"time"
 )
@@ -203,16 +202,16 @@ func PackUserInfo(model *ConversationUserInfo) *im.ConversationUserInfo {
 		return nil
 	}
 	user := &im.ConversationUserInfo{
-		ConShortId:     util.Int64(model.ConShortId),
-		UserId:         util.Int64(model.UserId),
-		Privilege:      util.Int32(model.Privilege),
-		NickName:       util.String(model.NickName),
-		BlockTimeStamp: util.Int64(model.BlockTimeStamp),
-		Operator:       util.Int64(model.Operator),
-		CreateTime:     util.Int64(model.CreateTime.Unix()),
-		ModifyTime:     util.Int64(model.ModifyTime.Unix()),
-		Status:         util.Int32(model.Status),
-		Extra:          util.String(model.Extra),
+		ConShortId:     model.ConShortId,
+		UserId:         model.UserId,
+		Privilege:      model.Privilege,
+		NickName:       model.NickName,
+		BlockTimeStamp: model.BlockTimeStamp,
+		Operator:       model.Operator,
+		CreateTime:     model.CreateTime.Unix(),
+		ModifyTime:     model.ModifyTime.Unix(),
+		Status:         model.Status,
+		Extra:          model.Extra,
 	}
 	return user
 }

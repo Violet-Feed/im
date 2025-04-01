@@ -1,0 +1,24 @@
+syntax = "proto3";
+package push;
+option java_multiple_files = true;
+option java_package = "violet.gateway.common.proto_gen.push";
+option go_package = "/proto_gen/push";
+
+import "proto/common.proto";
+import "proto/im.proto";
+
+message PushRequest{
+  im.MessageBody msg_body = 1;
+  int64 receiver_id = 2;
+  int64 badge_count = 3;
+  int64 user_con_index = 4;
+  int64 pre_user_con_index = 5;
+  int64 user_cmd_index = 6;
+}
+message PushResponse{
+  common.BaseResp baseResp = 255;
+}
+
+service PushService{
+  rpc Push(PushRequest) returns (PushResponse);
+}

@@ -55,10 +55,10 @@ func CreateConversation(ctx context.Context, req *im.CreateConversationRequest) 
 	if req.GetConType() == int32(im.ConversationType_Group_Chat) {
 		//添加成员
 		_, err := AddConversationMembers(ctx, &im.AddConversationMembersRequest{
-			ConShortId: util.Int64(conShortId),
-			ConId:      req.ConId,
-			Members:    req.Members,
-			Operator:   req.OwnerId,
+			ConShortId: conShortId,
+			ConId:      req.GetConId(),
+			Members:    req.GetMembers(),
+			Operator:   req.GetOwnerId(),
 		})
 		if err != nil {
 			logrus.Errorf("[CreateConversation] AddConversationMembers err. err = %v", err)
@@ -104,7 +104,7 @@ func GetConversationCores(ctx context.Context, conShortIds []int64) ([]*im.Conve
 		if coreInfos[i] == nil {
 			<-countChan[i]
 		}
-		coreInfos[i].MemberCount = util.Int32(int32(<-countChan[i]))
+		coreInfos[i].MemberCount = int32(<-countChan[i])
 	}
 	return coreInfos, nil
 	//redis mget key:convId,mysql,redis一天
@@ -152,8 +152,8 @@ func GetConversationSettings(ctx context.Context, userId int64, conShortIds []in
 	}
 	for i, conShortId := range conShortIds {
 		if settingInfos[i] != nil {
-			settingInfos[i].ReadIndexEnd = util.Int64(readIndexEnd[conShortId])
-			settingInfos[i].ReadBadgeCount = util.Int64(readBadge[conShortId])
+			settingInfos[i].ReadIndexEnd = readIndexEnd[conShortId]
+			settingInfos[i].ReadBadgeCount = readBadge[conShortId]
 		}
 	}
 	return settingInfos, nil

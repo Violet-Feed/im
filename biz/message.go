@@ -42,8 +42,8 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 		minId, _ := strconv.ParseInt(parts[0], 10, 64)
 		maxId, _ := strconv.ParseInt(parts[1], 10, 64)
 		createConversationRequest := &im.CreateConversationRequest{
-			ConId:   req.ConId,
-			ConType: req.ConType,
+			ConId:   req.GetConId(),
+			ConType: req.GetConType(),
 			Members: []int64{minId, maxId},
 		}
 		createConversationResponse, err := CreateConversation(ctx, createConversationRequest)
@@ -57,16 +57,16 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 	//TODO：消息频率控制
 	createTime := time.Now().Unix()
 	messageBody := &im.MessageBody{
-		UserId:      req.UserId,
-		ConId:       req.ConId,
-		ConShortId:  req.ConShortId,
-		ConType:     req.ConType,
-		ClientMsgId: req.ClientMsgId,
-		MsgId:       util.Int64(messageId),
-		MsgType:     req.MsgType,
-		MsgContent:  req.MsgContent,
-		CreateTime:  util.Int64(createTime),
-		Extra:       util.String(""),
+		UserId:      req.GetUserId(),
+		ConId:       req.GetConId(),
+		ConShortId:  req.GetConShortId(),
+		ConType:     req.GetConType(),
+		ClientMsgId: req.GetClientMsgId(),
+		MsgId:       messageId,
+		MsgType:     req.GetMsgType(),
+		MsgContent:  req.GetMsgContent(),
+		CreateTime:  createTime,
+		Extra:       "",
 	}
 	messageEvent := &im.MessageEvent{
 		MsgBody: messageBody,

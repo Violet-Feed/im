@@ -10,7 +10,6 @@ import (
 	"im/dal"
 	"im/proto_gen/common"
 	"im/proto_gen/im"
-	"im/util"
 	"math"
 	"strconv"
 	"strings"
@@ -87,12 +86,12 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 	}
 	cmdByte, _ := json.Marshal(cmdMessage)
 	sendMessageRequest := &im.SendMessageRequest{
-		UserId:     util.Int64(1),
-		ConShortId: req.ConShortId,
-		ConId:      req.ConId,
-		ConType:    util.Int32(int32(im.ConversationType_Group_Chat)),
-		MsgType:    util.Int32(int32(im.MessageType_SpecialCmd)),
-		MsgContent: util.String(string(cmdByte)),
+		UserId:     int64(common.SpecialUser_Conversation),
+		ConShortId: req.GetConShortId(),
+		ConId:      req.GetConId(),
+		ConType:    int32(im.ConversationType_Group_Chat),
+		MsgType:    int32(im.MessageType_SpecialCmd),
+		MsgContent: string(cmdByte),
 	}
 	_, err = SendMessage(ctx, sendMessageRequest)
 	if err != nil {

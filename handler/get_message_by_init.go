@@ -1,14 +1,12 @@
 package handler
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
 	"github.com/sirupsen/logrus"
 	"im/biz"
 	"im/proto_gen/common"
 	"im/proto_gen/im"
-	"im/util"
 	"math"
-	"net/http"
 )
 
 const (
@@ -16,17 +14,11 @@ const (
 	MsgLimit  = 5
 )
 
-func GetByInit(c *gin.Context) {
-	resp := &im.MessageGetByInitResponse{}
-	var req *im.MessageGetByInitRequest
-	err := c.ShouldBindJSON(&req)
-	if err != nil {
-		c.JSON(http.StatusOK, common.StatusCode_Param_Error)
-		return
+func GetMessageByInit(ctx context.Context, req *im.GetMessageByInitRequest) (resp *im.GetMessageByInitResponse) {
+	resp = &im.GetMessageByInitResponse{
+		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
 	}
-	userIdStr, _ := c.Get("userId")
-	userId := userIdStr.(int64)
-
+	userId := req.GetUserId()
 	var globalErr error
 	conMsgsChan, hasMoreChan, nextUserConIndexChan, userConIndexChan, userCmdIndexChan := make(chan []*im.ConversationMessage), make(chan bool), make(chan int64), make(chan int64), make(chan int64)
 	//拉取用户会话链
@@ -35,9 +27,9 @@ func GetByInit(c *gin.Context) {
 		if userConIndex == 0 {
 			userConIndex = math.MaxInt64
 		}
-		conShortIds, userConIndexs, hasMore, err := biz.PullUserConIndex(c, userId, userConIndex, ConvLimit)
+		conShortIds, userConIndexs, hasMore, err := biz.PullUserConIndex(ctx, userId, userConIndex, ConvLimit)
 		if err != nil {
-			logrus.Errorf("[GetByInit] PullUserConIndex err. err = %v", err)
+			logrus.Errorf("[GetMessageByInit] PullUserConIndex err. err = %v", err)
 			conMsgsChan <- nil
 			hasMoreChan <- false
 			nextUserConIndexChan <- 0
@@ -63,21 +55,21 @@ func GetByInit(c *gin.Context) {
 			msgBodiesChan := make(chan []*im.MessageBody, len(conShortIds))
 			for _, convShortId := range conShortIds {
 				go func(convShortId int64) {
-					msgIds, conIndexs, err := biz.PullConversationIndex(c, convShortId, math.MaxInt64, MsgLimit)
+					msgIds, conIndexs, err := biz.PullConversationIndex(ctx, convShortId, math.MaxInt64, MsgLimit)
 					if err != nil {
-						logrus.Errorf("[GetByInit] PullConversationIndex err. err = %v", err)
+						logrus.Errorf("[GetMessageByInit] PullConversationIndex err. err = %v", err)
 						msgBodiesChan <- nil
 						return
 					}
 					//TODO:过滤撤回消息
-					msgBodies, err := biz.GetMessages(c, convShortId, msgIds)
+					msgBodies, err := biz.GetMessages(ctx, convShortId, msgIds)
 					if err != nil {
-						logrus.Errorf("[GetByInit] GetMessage err. err = %v", err)
+						logrus.Errorf("[GetMessageByInit] GetMessage err. err = %v", err)
 						msgBodiesChan <- nil
 						return
 					}
 					for i, msgBody := range msgBodies {
-						msgBody.ConIndex = util.Int64(conIndexs[i])
+						msgBody.ConIndex = conIndexs[i]
 					}
 					msgBodiesChan <- msgBodies
 				}(convShortId)
@@ -93,9 +85,9 @@ func GetByInit(c *gin.Context) {
 		}()
 		//获取会话core
 		go func() {
-			cores, err := biz.GetConversationCores(c, conShortIds)
+			cores, err := biz.GetConversationCores(ctx, conShortIds)
 			if err != nil {
-				logrus.Errorf("[GetByInit] GetConversationCores err. err = %v", err)
+				logrus.Errorf("[GetMessageByInit] GetConversationCores err. err = %v", err)
 				coresMapChan <- nil
 				statusMapChan <- nil
 				globalErr = err
@@ -113,14 +105,14 @@ func GetByInit(c *gin.Context) {
 				for _, conShortId := range conShortIds {
 					core := coresMap[conShortId]
 					if core.GetConType() == int32(im.ConversationType_One_Chat) {
-						statusMap[conShortId] = biz.IsSingleMember(c, core.GetConId(), userId)
+						statusMap[conShortId] = biz.IsSingleMember(ctx, core.GetConId(), userId)
 					} else if core.GetConType() == int32(im.ConversationType_Group_Chat) {
 						groupIds = append(groupIds, conShortId)
 					}
 				}
-				status, err := biz.IsGroupsMember(c, groupIds, userId)
+				status, err := biz.IsGroupsMember(ctx, groupIds, userId)
 				if err != nil {
-					logrus.Errorf("[GetByInit] IsConversationMembers err. err = %v", err)
+					logrus.Errorf("[GetMessageByInit] IsConversationMembers err. err = %v", err)
 					statusMapChan <- statusMap
 					return
 				}
@@ -131,18 +123,18 @@ func GetByInit(c *gin.Context) {
 			}()
 			//TODO:获取最近member，id昵称权限block
 			go func() {
-				_, err := biz.GetConversationMemberInfos(c, 0, []int64{0})
+				_, err := biz.GetConversationMemberInfos(ctx, 0, []int64{0})
 				if err != nil {
-					logrus.Errorf("[GetByInit] GetConversationUsers err. err = %v", err)
+					logrus.Errorf("[GetMessageByInit] GetConversationUsers err. err = %v", err)
 					return
 				}
 			}()
 		}()
 		//获取会话setting
 		go func() {
-			settings, err := biz.GetConversationSettings(c, userId, conShortIds)
+			settings, err := biz.GetConversationSettings(ctx, userId, conShortIds)
 			if err != nil {
-				logrus.Errorf("[GetByInit] GetConversationSettings err. err = %v", err)
+				logrus.Errorf("[GetMessageByInit] GetConversationSettings err. err = %v", err)
 				settingsMapChan <- nil
 				globalErr = err
 				return
@@ -155,9 +147,9 @@ func GetByInit(c *gin.Context) {
 		}()
 		//获取会话badge
 		go func() {
-			badges, err := biz.GetConversationBadges(c, userId, conShortIds)
+			badges, err := biz.GetConversationBadges(ctx, userId, conShortIds)
 			if err != nil {
-				logrus.Errorf("[GetByInit] GetConversationBadge err. err = %v", err)
+				logrus.Errorf("[GetMessageByInit] GetConversationBadge err. err = %v", err)
 				badgesMapChan <- nil
 				return
 			}
@@ -177,12 +169,12 @@ func GetByInit(c *gin.Context) {
 		for i, conShortId := range conShortIds {
 			core := coresMap[conShortId]
 			conInfo := &im.ConversationInfo{
-				ConShortId:     core.ConShortId,
-				ConId:          core.ConId,
-				ConType:        core.ConType,
-				UserConIndex:   util.Int64(userConIndexs[i]),
-				BadgeCount:     util.Int64(badgesMap[conShortId]),
-				IsMember:       util.Bool(statusMap[conShortId] == 1),
+				ConShortId:     core.GetConShortId(),
+				ConId:          core.GetConId(),
+				ConType:        core.GetConType(),
+				UserConIndex:   userConIndexs[i],
+				BadgeCount:     badgesMap[conShortId],
+				IsMember:       statusMap[conShortId] == 1,
 				ConCoreInfo:    core,
 				ConSettingInfo: settingsMap[conShortId],
 			}
@@ -200,9 +192,9 @@ func GetByInit(c *gin.Context) {
 			userCmdIndexChan <- 0
 			return
 		}
-		_, userCmdIndex, err := biz.PullUserCmdIndex(c, userId, math.MaxInt64, 1)
+		_, userCmdIndex, err := biz.PullUserCmdIndex(ctx, userId, math.MaxInt64, 1)
 		if err != nil {
-			logrus.Errorf("[GetByInit] PullUserCmdIndex err. err = %v", err)
+			logrus.Errorf("[GetMessageByInit] PullUserCmdIndex err. err = %v", err)
 			userCmdIndexChan <- 0
 			globalErr = err
 			return
@@ -215,24 +207,15 @@ func GetByInit(c *gin.Context) {
 	userCmdIndex := <-userCmdIndexChan
 	conMsgs := <-conMsgsChan
 	if globalErr != nil {
-		logrus.Errorf("[GetByInit] happend err.")
-		c.JSON(http.StatusOK, HttpResponse{
-			Code:    common.StatusCode_Server_Error,
-			Message: "server err",
-			Data:    resp,
-		})
+		logrus.Errorf("[GetMessageByInit] happend err.")
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: globalErr.Error()}
 		return
 	}
 	resp.Cons = conMsgs
-	resp.HasMore = util.Bool(hasMore)
-	resp.NextUserConIndex = util.Int64(nextUserConIndex)
-	resp.UserConIndex = util.Int64(userConIndex)
-	resp.UserCmdIndex = util.Int64(userCmdIndex)
-	c.JSON(http.StatusOK, HttpResponse{
-		Code:    common.StatusCode_Success,
-		Message: "success",
-		Data:    resp,
-	})
+	resp.HasMore = hasMore
+	resp.NextUserConIndex = nextUserConIndex
+	resp.UserConIndex = userConIndex
+	resp.UserCmdIndex = userCmdIndex
 	return
 	//获取最近会话id(recent_conversation,abase,zset)->拉取会话链(inbox_api,V2)->获取消息内容(message_api)->隐藏撤回消息
 	//->获取会话core,setting信息(im_conversation_api)->获取会话ext信息(conversation_ext)->获取群聊是否是成员,最近成员信息(im_conversation_api)

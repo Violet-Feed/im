@@ -9,7 +9,6 @@ import (
 	"im/biz"
 	"im/dal/mq"
 	"im/proto_gen/im"
-	"im/util"
 	"im/util/backoff"
 	"strconv"
 )
@@ -27,8 +26,8 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 				logrus.Errorf("[UserProcess] AppendUserConIndex err. err = %v", err)
 				return mq.SendToRetry(ctx, "user", messageEvent)
 			}
-			messageEvent.UserConIndex = util.Int64(userConIndex)
-			messageEvent.PreUserConIndex = util.Int64(preUserConIndex)
+			messageEvent.UserConIndex = userConIndex
+			messageEvent.PreUserConIndex = preUserConIndex
 		}
 		if messageEvent.GetBadgeCount() == 0 {
 			if userId != messageEvent.GetMsgBody().GetUserId() {
@@ -37,14 +36,14 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 					logrus.Errorf("[UserProcess] IncrConversationBadge err. err = %v", err)
 					return mq.SendToRetry(ctx, "user", messageEvent)
 				}
-				messageEvent.BadgeCount = util.Int64(badgeCount)
+				messageEvent.BadgeCount = badgeCount
 			} else {
 				badgeCount, err := biz.GetConversationBadges(ctx, userId, []int64{messageEvent.GetMsgBody().GetConShortId()})
 				if err != nil {
 					logrus.Errorf("[UserProcess] GetConversationBadges err. err = %v", err)
 					return mq.SendToRetry(ctx, "user", messageEvent)
 				}
-				messageEvent.BadgeCount = util.Int64(badgeCount[0])
+				messageEvent.BadgeCount = badgeCount[0]
 			}
 		}
 	} else if messageEvent.GetUserCmdIndex() == 0 {
@@ -53,15 +52,15 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			logrus.Errorf("[UserProcess] AppendUserCmdIndex err. err = %v", err)
 			return mq.SendToRetry(ctx, "user", messageEvent)
 		}
-		messageEvent.UserCmdIndex = util.Int64(userCmdIndex)
+		messageEvent.UserCmdIndex = userCmdIndex
 	}
 	pushRequest := &im.PushRequest{
 		MsgBody:         messageEvent.GetMsgBody(),
-		ReceiverId:      util.Int64(userId),
-		BadgeCount:      messageEvent.BadgeCount,
-		UserConIndex:    messageEvent.UserConIndex,
-		PreUserConIndex: messageEvent.PreUserConIndex,
-		UserCmdIndex:    messageEvent.UserCmdIndex,
+		ReceiverId:      userId,
+		BadgeCount:      messageEvent.GetBadgeCount(),
+		UserConIndex:    messageEvent.GetUserConIndex(),
+		PreUserConIndex: messageEvent.GetPreUserConIndex(),
+		UserCmdIndex:    messageEvent.GetUserCmdIndex(),
 	}
 	err := backoff.Retry(func() error {
 		_, err := biz.Push(ctx, pushRequest)

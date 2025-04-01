@@ -7,7 +7,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"im/dal"
 	"im/proto_gen/im"
-	"im/util"
 	"strconv"
 	"time"
 )
@@ -142,18 +141,18 @@ func PackCoreInfo(model *ConversationCoreInfo) *im.ConversationCoreInfo {
 		return nil
 	}
 	core := &im.ConversationCoreInfo{
-		ConShortId:  util.Int64(model.ConShortId),
-		ConId:       util.String(model.ConId),
-		ConType:     util.Int32(model.ConType),
-		Name:        util.String(model.Name),
-		AvatarUri:   util.String(model.AvatarUri),
-		Description: util.String(model.Description),
-		Notice:      util.String(model.Notice),
-		OwnerId:     util.Int64(model.OwnerId),
-		CreateTime:  util.Int64(model.CreateTime.Unix()),
-		ModifyTime:  util.Int64(model.ModifyTime.Unix()),
-		Status:      util.Int32(model.Status),
-		Extra:       util.String(model.Extra),
+		ConShortId:  model.ConShortId,
+		ConId:       model.ConId,
+		ConType:     model.ConType,
+		Name:        model.Name,
+		AvatarUri:   model.AvatarUri,
+		Description: model.Description,
+		Notice:      model.Notice,
+		OwnerId:     model.OwnerId,
+		CreateTime:  model.CreateTime.Unix(),
+		ModifyTime:  model.ModifyTime.Unix(),
+		Status:      model.Status,
+		Extra:       model.Extra,
 	}
 	return core
 }

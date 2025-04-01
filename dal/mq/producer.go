@@ -9,7 +9,6 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/producer"
 	"github.com/sirupsen/logrus"
 	"im/proto_gen/im"
-	"im/util"
 	"im/util/backoff"
 	"strconv"
 )
@@ -45,7 +44,7 @@ func SendToRetry(ctx context.Context, topic string, event *im.MessageEvent) (con
 		logrus.Errorf("[SendToRetry] retry too much. topic = %s, message = %v", topic, event)
 		return consumer.ConsumeSuccess, nil
 	}
-	event.RetryCount = util.Int32(retryCount + 1)
+	event.RetryCount = retryCount + 1
 	_ = backoff.Retry(func() error {
 		return SendToMq(ctx, topic, strconv.FormatInt(event.GetMsgBody().GetConShortId(), 10), event)
 	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), backoff.Infinite))

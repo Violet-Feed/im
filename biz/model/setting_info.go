@@ -7,7 +7,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"im/dal"
 	"im/proto_gen/im"
-	"im/util"
 	"strconv"
 	"time"
 )
@@ -135,14 +134,14 @@ func PackSettingInfo(model *ConversationSettingInfo) *im.ConversationSettingInfo
 		return nil
 	}
 	setting := &im.ConversationSettingInfo{
-		UserId:       util.Int64(model.UserId),
-		ConShortId:   util.Int64(model.ConShortId),
-		ConType:      util.Int32(model.ConType),
-		MinIndex:     util.Int64(model.MinIndex),
-		TopTimeStamp: util.Int64(model.TopTimeStamp),
-		PushStatus:   util.Int32(model.PushStatus),
-		ModifyTime:   util.Int64(model.ModifyTime.Unix()),
-		Extra:        util.String(model.Extra),
+		UserId:       model.UserId,
+		ConShortId:   model.ConShortId,
+		ConType:      model.ConType,
+		MinIndex:     model.MinIndex,
+		TopTimeStamp: model.TopTimeStamp,
+		PushStatus:   model.PushStatus,
+		ModifyTime:   model.ModifyTime.Unix(),
+		Extra:        model.Extra,
 	}
 	return setting
 }

@@ -76,31 +76,6 @@ func Router(r *gin.Engine) *gin.Engine {
 	im := r.Group("/api/im")
 	{
 		im.GET("/ws", handler.WebsocketHandler)
-		message := im.Group("/message")
-		{
-			message.POST("/send", handler.Send)
-			message.POST("/modify")
-			message.POST("/recall")
-			message.POST("/delete")
-			message.POST("/forward")
-			message.POST("/pin")
-			message.POST("/mark_read", handler.MarkRead)
-			message.POST("/get_by_init", handler.GetByInit)
-			message.POST("/get_by_conversation", handler.GetByConversation)
-			message.POST("/get_by_user", handler.GetByUser)
-		}
-		conversation := im.Group("/conversation")
-		{
-			conversation.POST("/create")
-			conversation.POST("/delete")
-			conversation.POST("/pin")
-			conversation.POST("/get_info")
-			conversation.POST("/modify_info")
-			conversation.POST("/disband")
-			conversation.POST("/join")
-			conversation.POST("/exit")
-			conversation.POST("/share")
-		}
 	}
 	return r
 }

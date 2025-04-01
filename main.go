@@ -31,17 +31,22 @@ func main() {
 	//		time.Sleep(1 * time.Second)
 	//	}
 	//}
+	logrus.SetFormatter(&logrus.TextFormatter{
+		TimestampFormat: "2006-01-02 15:04:05",
+		FullTimestamp:   true,
+		ForceColors:     true,
+	})
 	dal.InitService()
 	consumer.InitConsumer()
 	go func() {
 		r := gin.Default()
 		r = Router(r)
-		if err := r.Run(":3010"); err != nil {
+		if err := r.Run(":3005"); err != nil {
 			logrus.Fatalf("[main] gin run err. err = %v", err)
 		}
 	}()
 
-	lis, err := net.Listen("tcp", ":3003")
+	lis, err := net.Listen("tcp", ":3004")
 	if err != nil {
 		logrus.Fatalf("[main] grpc listen err. err = %v", err)
 	}

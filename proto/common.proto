@@ -20,3 +20,12 @@ message BaseResp{
   StatusCode StatusCode = 1;
   string StatusMessage = 2;
 }
+
+enum SpecialUser{
+  SpecialUser_Not_Use = 0;
+  System = 1;
+  Action = 2;
+  Market = 3;
+  AI = 4;
+  Conversation = 5;
+}

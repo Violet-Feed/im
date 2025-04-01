@@ -20,8 +20,8 @@ const _ = grpc.SupportPackageIsVersion7
 
 const (
 	IMService_SendMessage_FullMethodName              = "/im.IMService/SendMessage"
-	IMService_MessageGetByInit_FullMethodName         = "/im.IMService/MessageGetByInit"
-	IMService_MessageGetByConversation_FullMethodName = "/im.IMService/MessageGetByConversation"
+	IMService_GetMessageByInit_FullMethodName         = "/im.IMService/GetMessageByInit"
+	IMService_GetMessageByConversation_FullMethodName = "/im.IMService/GetMessageByConversation"
 	IMService_MarkRead_FullMethodName                 = "/im.IMService/MarkRead"
 	IMService_CreateConversation_FullMethodName       = "/im.IMService/CreateConversation"
 	IMService_GetConversationMembers_FullMethodName   = "/im.IMService/GetConversationMembers"
@@ -33,8 +33,8 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type IMServiceClient interface {
 	SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*SendMessageResponse, error)
-	MessageGetByInit(ctx context.Context, in *MessageGetByInitRequest, opts ...grpc.CallOption) (*MessageGetByInitResponse, error)
-	MessageGetByConversation(ctx context.Context, in *MessageGetByConversationRequest, opts ...grpc.CallOption) (*MessageGetByConversationResponse, error)
+	GetMessageByInit(ctx context.Context, in *GetMessageByInitRequest, opts ...grpc.CallOption) (*GetMessageByInitResponse, error)
+	GetMessageByConversation(ctx context.Context, in *GetMessageByConversationRequest, opts ...grpc.CallOption) (*GetMessageByConversationResponse, error)
 	MarkRead(ctx context.Context, in *MarkReadRequest, opts ...grpc.CallOption) (*MarkReadResponse, error)
 	CreateConversation(ctx context.Context, in *CreateConversationRequest, opts ...grpc.CallOption) (*CreateConversationResponse, error)
 	GetConversationMembers(ctx context.Context, in *GetConversationMembersRequest, opts ...grpc.CallOption) (*GetConversationMemberResponse, error)
@@ -58,18 +58,18 @@ func (c *iMServiceClient) SendMessage(ctx context.Context, in *SendMessageReques
 	return out, nil
 }
 
-func (c *iMServiceClient) MessageGetByInit(ctx context.Context, in *MessageGetByInitRequest, opts ...grpc.CallOption) (*MessageGetByInitResponse, error) {
-	out := new(MessageGetByInitResponse)
-	err := c.cc.Invoke(ctx, IMService_MessageGetByInit_FullMethodName, in, out, opts...)
+func (c *iMServiceClient) GetMessageByInit(ctx context.Context, in *GetMessageByInitRequest, opts ...grpc.CallOption) (*GetMessageByInitResponse, error) {
+	out := new(GetMessageByInitResponse)
+	err := c.cc.Invoke(ctx, IMService_GetMessageByInit_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *iMServiceClient) MessageGetByConversation(ctx context.Context, in *MessageGetByConversationRequest, opts ...grpc.CallOption) (*MessageGetByConversationResponse, error) {
-	out := new(MessageGetByConversationResponse)
-	err := c.cc.Invoke(ctx, IMService_MessageGetByConversation_FullMethodName, in, out, opts...)
+func (c *iMServiceClient) GetMessageByConversation(ctx context.Context, in *GetMessageByConversationRequest, opts ...grpc.CallOption) (*GetMessageByConversationResponse, error) {
+	out := new(GetMessageByConversationResponse)
+	err := c.cc.Invoke(ctx, IMService_GetMessageByConversation_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -117,8 +117,8 @@ func (c *iMServiceClient) AddConversationMembers(ctx context.Context, in *AddCon
 // for forward compatibility
 type IMServiceServer interface {
 	SendMessage(context.Context, *SendMessageRequest) (*SendMessageResponse, error)
-	MessageGetByInit(context.Context, *MessageGetByInitRequest) (*MessageGetByInitResponse, error)
-	MessageGetByConversation(context.Context, *MessageGetByConversationRequest) (*MessageGetByConversationResponse, error)
+	GetMessageByInit(context.Context, *GetMessageByInitRequest) (*GetMessageByInitResponse, error)
+	GetMessageByConversation(context.Context, *GetMessageByConversationRequest) (*GetMessageByConversationResponse, error)
 	MarkRead(context.Context, *MarkReadRequest) (*MarkReadResponse, error)
 	CreateConversation(context.Context, *CreateConversationRequest) (*CreateConversationResponse, error)
 	GetConversationMembers(context.Context, *GetConversationMembersRequest) (*GetConversationMemberResponse, error)
@@ -133,11 +133,11 @@ type UnimplementedIMServiceServer struct {
 func (UnimplementedIMServiceServer) SendMessage(context.Context, *SendMessageRequest) (*SendMessageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendMessage not implemented")
 }
-func (UnimplementedIMServiceServer) MessageGetByInit(context.Context, *MessageGetByInitRequest) (*MessageGetByInitResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method MessageGetByInit not implemented")
+func (UnimplementedIMServiceServer) GetMessageByInit(context.Context, *GetMessageByInitRequest) (*GetMessageByInitResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMessageByInit not implemented")
 }
-func (UnimplementedIMServiceServer) MessageGetByConversation(context.Context, *MessageGetByConversationRequest) (*MessageGetByConversationResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method MessageGetByConversation not implemented")
+func (UnimplementedIMServiceServer) GetMessageByConversation(context.Context, *GetMessageByConversationRequest) (*GetMessageByConversationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMessageByConversation not implemented")
 }
 func (UnimplementedIMServiceServer) MarkRead(context.Context, *MarkReadRequest) (*MarkReadResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MarkRead not implemented")
@@ -182,38 +182,38 @@ func _IMService_SendMessage_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _IMService_MessageGetByInit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MessageGetByInitRequest)
+func _IMService_GetMessageByInit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMessageByInitRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IMServiceServer).MessageGetByInit(ctx, in)
+		return srv.(IMServiceServer).GetMessageByInit(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: IMService_MessageGetByInit_FullMethodName,
+		FullMethod: IMService_GetMessageByInit_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IMServiceServer).MessageGetByInit(ctx, req.(*MessageGetByInitRequest))
+		return srv.(IMServiceServer).GetMessageByInit(ctx, req.(*GetMessageByInitRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _IMService_MessageGetByConversation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MessageGetByConversationRequest)
+func _IMService_GetMessageByConversation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMessageByConversationRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IMServiceServer).MessageGetByConversation(ctx, in)
+		return srv.(IMServiceServer).GetMessageByConversation(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: IMService_MessageGetByConversation_FullMethodName,
+		FullMethod: IMService_GetMessageByConversation_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IMServiceServer).MessageGetByConversation(ctx, req.(*MessageGetByConversationRequest))
+		return srv.(IMServiceServer).GetMessageByConversation(ctx, req.(*GetMessageByConversationRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -302,12 +302,12 @@ var IMService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _IMService_SendMessage_Handler,
 		},
 		{
-			MethodName: "MessageGetByInit",
-			Handler:    _IMService_MessageGetByInit_Handler,
+			MethodName: "GetMessageByInit",
+			Handler:    _IMService_GetMessageByInit_Handler,
 		},
 		{
-			MethodName: "MessageGetByConversation",
-			Handler:    _IMService_MessageGetByConversation_Handler,
+			MethodName: "GetMessageByConversation",
+			Handler:    _IMService_GetMessageByConversation_Handler,
 		},
 		{
 			MethodName: "MarkRead",

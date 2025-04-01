@@ -10,7 +10,6 @@ import (
 	"im/biz"
 	"im/dal/mq"
 	"im/proto_gen/im"
-	"im/util"
 	"strconv"
 	"strings"
 )
@@ -26,7 +25,7 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			logrus.Errorf("[ConvProcess] StoreMessage err. err = %v", err)
 			return mq.SendToRetry(ctx, "conversation", messageEvent)
 		}
-		messageEvent.Stored = util.Bool(true)
+		messageEvent.Stored = true
 	}
 	//写入会话链
 	if messageEvent.GetConIndex() == 0 && messageEvent.GetMsgBody().GetMsgType() != 1000 {
@@ -35,8 +34,8 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			logrus.Errorf("[ConvProcess] AppendConversationIndex err. err = %v", err)
 			return mq.SendToRetry(ctx, "conversation", messageEvent)
 		}
-		messageEvent.ConIndex = util.Int64(conIndex)
-		messageEvent.MsgBody.ConIndex = util.Int64(conIndex)
+		messageEvent.ConIndex = conIndex
+		messageEvent.MsgBody.ConIndex = conIndex
 	}
 	//处理特殊命令消息
 	if messageEvent.GetMsgBody().GetMsgType() == 1001 {
