@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	PushServer    rpc.PushServiceImpl
 	ActionServer  rpc.ActionServiceImpl
 	RedisServer   redis.RedisServiceImpl
 	KvrocksServer kvrocks.KvrocksServiceImpl
@@ -16,6 +17,7 @@ var (
 )
 
 func InitService() {
+	PushServer = rpc.NewPushServiceImpl()
 	ActionServer = rpc.NewActionServiceImpl()
 	RedisServer = redis.NewRedisServiceImpl()
 	KvrocksServer = kvrocks.NewKvrocksServiceImpl()

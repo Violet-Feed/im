@@ -7,8 +7,10 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/sirupsen/logrus"
 	"im/biz"
+	"im/dal"
 	"im/dal/mq"
 	"im/proto_gen/im"
+	"im/proto_gen/push"
 	"im/util/backoff"
 	"strconv"
 )
@@ -44,6 +46,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 					return mq.SendToRetry(ctx, "user", messageEvent)
 				}
 				messageEvent.BadgeCount = badgeCount[0]
+				logrus.Info(badgeCount)
 			}
 		}
 	} else if messageEvent.GetUserCmdIndex() == 0 {
@@ -54,7 +57,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		}
 		messageEvent.UserCmdIndex = userCmdIndex
 	}
-	pushRequest := &im.PushRequest{
+	pushRequest := &push.PushRequest{
 		MsgBody:         messageEvent.GetMsgBody(),
 		ReceiverId:      userId,
 		BadgeCount:      messageEvent.GetBadgeCount(),
@@ -63,7 +66,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		UserCmdIndex:    messageEvent.GetUserCmdIndex(),
 	}
 	err := backoff.Retry(func() error {
-		_, err := biz.Push(ctx, pushRequest)
+		err := dal.PushServer.Push(ctx, pushRequest)
 		if err != nil {
 			logrus.Errorf("[UserProcess] Push err. err = %v", err)
 		}
