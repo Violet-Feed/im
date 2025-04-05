@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"im/handler"
+	"im/biz"
 	"im/proto_gen/im"
 )
 
@@ -11,23 +11,28 @@ type IMServerImpl struct {
 }
 
 func (s *IMServerImpl) SendMessage(ctx context.Context, req *im.SendMessageRequest) (*im.SendMessageResponse, error) {
-	return handler.SendMessage(ctx, req), nil
+	resp, _ := biz.SendMessage(ctx, req)
+	return resp, nil
 }
 
 func (s *IMServerImpl) GetMessageByInit(ctx context.Context, req *im.GetMessageByInitRequest) (*im.GetMessageByInitResponse, error) {
-	return handler.GetMessageByInit(ctx, req), nil
+	resp, _ := biz.GetMessageByInit(ctx, req)
+	return resp, nil
 }
 
 func (s *IMServerImpl) GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversationRequest) (*im.GetMessageByConversationResponse, error) {
-	return handler.GetMessageByConversation(ctx, req), nil
+	resp, _ := biz.GetMessageByConversation(ctx, req)
+	return resp, nil
 }
 
 func (s *IMServerImpl) MarkRead(ctx context.Context, req *im.MarkReadRequest) (*im.MarkReadResponse, error) {
-	return handler.MarkRead(ctx, req), nil
+	resp, _ := biz.MarkRead(ctx, req)
+	return resp, nil
 }
 
 func (s *IMServerImpl) CreateConversation(ctx context.Context, req *im.CreateConversationRequest) (*im.CreateConversationResponse, error) {
-	return &im.CreateConversationResponse{}, nil
+	resp, _ := biz.CreateConversation(ctx, req)
+	return resp, nil
 }
 
 func (s *IMServerImpl) GetConversationMembers(ctx context.Context, req *im.GetConversationMembersRequest) (*im.GetConversationMemberResponse, error) {
@@ -35,5 +40,6 @@ func (s *IMServerImpl) GetConversationMembers(ctx context.Context, req *im.GetCo
 }
 
 func (s *IMServerImpl) AddConversationMembers(ctx context.Context, req *im.AddConversationMembersRequest) (*im.AddConversationMembersResponse, error) {
-	return &im.AddConversationMembersResponse{}, nil
+	resp, _ := biz.AddConversationMembers(ctx, req)
+	return resp, nil
 }

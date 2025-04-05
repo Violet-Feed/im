@@ -79,19 +79,18 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 		}
 	}
 	//发送进群命令消息
-	cmdMessage := map[string]interface{}{
-		"cmd_type":    im.SpecialCommandType_Add_Members,
+	conMessage := map[string]interface{}{
 		"operator":    req.GetOperator(),
 		"add_members": req.GetMembers(),
 	}
-	cmdByte, _ := json.Marshal(cmdMessage)
+	conMessageByte, _ := json.Marshal(conMessage)
 	sendMessageRequest := &im.SendMessageRequest{
 		UserId:     int64(common.SpecialUser_Conversation),
 		ConShortId: req.GetConShortId(),
 		ConId:      req.GetConId(),
 		ConType:    int32(im.ConversationType_Group_Chat),
-		MsgType:    int32(im.MessageType_SpecialCmd),
-		MsgContent: string(cmdByte),
+		MsgType:    int32(im.MessageType_Conversation),
+		MsgContent: string(conMessageByte),
 	}
 	_, err = SendMessage(ctx, sendMessageRequest)
 	if err != nil {

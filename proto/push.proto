@@ -7,13 +7,33 @@ option go_package = "/proto_gen/push";
 import "proto/common.proto";
 import "proto/im.proto";
 
-message PushRequest{
-  im.MessageBody msg_body = 1;
-  int64 receiver_id = 2;
+enum PacketType{
+  PacketType_Not_Use = 0;
+  Connect = 1;
+  Heartbeat = 2;
+  Normal = 3;
+  Command = 4;
+}
+
+message ConnectPacket{
+  int64 user_id = 1;
+}
+message NormalPacket{
+  int64 user_con_index = 1;
+  int64 pre_user_con_index = 2;
   int64 badge_count = 3;
-  int64 user_con_index = 4;
-  int64 pre_user_con_index = 5;
-  int64 user_cmd_index = 6;
+  im.MessageBody msg_body = 4;
+}
+message CommandPacket{
+  int64 user_cmd_index = 1;
+  im.MessageBody msg_body = 2;
+}
+
+message PushRequest{
+  PacketType packet_type = 1;
+  int64 user_id = 2;
+  NormalPacket normal_packet = 3;
+  CommandPacket command_packet = 4;
 }
 message PushResponse{
   common.BaseResp baseResp = 255;

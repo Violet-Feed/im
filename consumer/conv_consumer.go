@@ -19,7 +19,7 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	_ = json.Unmarshal(msgs[0].Body, &messageEvent)
 	logrus.Infof("[ConvProcess] rocketmq receive message success. message = %v", messageEvent)
 	//保存消息
-	if !messageEvent.GetStored() && messageEvent.GetMsgBody().GetMsgType() != 1000 {
+	if !messageEvent.GetStored() && messageEvent.GetMsgBody().GetMsgType() != int32(im.MessageType_Command) {
 		err := biz.StoreMessage(ctx, messageEvent.GetMsgBody())
 		if err != nil {
 			logrus.Errorf("[ConvProcess] StoreMessage err. err = %v", err)
@@ -28,7 +28,7 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		messageEvent.Stored = true
 	}
 	//写入会话链
-	if messageEvent.GetConIndex() == 0 && messageEvent.GetMsgBody().GetMsgType() != 1000 {
+	if messageEvent.GetConIndex() == 0 && messageEvent.GetMsgBody().GetMsgType() != int32(im.MessageType_Command) {
 		conIndex, err := biz.AppendConversationIndex(ctx, messageEvent.GetMsgBody().GetConShortId(), messageEvent.GetMsgBody().GetMsgId())
 		if err != nil {
 			logrus.Errorf("[ConvProcess] AppendConversationIndex err. err = %v", err)
@@ -36,14 +36,6 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		}
 		messageEvent.ConIndex = conIndex
 		messageEvent.MsgBody.ConIndex = conIndex
-	}
-	//处理特殊命令消息
-	if messageEvent.GetMsgBody().GetMsgType() == 1001 {
-		var cmdMessage map[string]interface{}
-		_ = json.Unmarshal([]byte(messageEvent.GetMsgBody().GetMsgContent()), &cmdMessage)
-		switch cmdMessage["cmd_type"].(int32) {
-
-		}
 	}
 	//获取成员分发用户topic
 	receivers, err := getReceivers(ctx, messageEvent)

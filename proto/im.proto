@@ -21,21 +21,12 @@ enum MessageType{
   Image = 2;
   Video = 3;
   Forward = 4;
-  Cmd = 1000;
-  SpecialCmd = 1001;
+  Conversation = 5;
+  Command = 1000;
 }
 
 enum CommandType{
   CommandType_Not_Use = 0;
-}
-
-enum SpecialCommandType{
-  SpecialCommandType_Not_Use = 0;
-  Create_Conversation = 1;
-  Disband_Conversation = 2;
-  Update_Conversation = 3;
-  Add_Members = 4;
-  Remove_Members = 5;
 }
 
 message MessageEvent{

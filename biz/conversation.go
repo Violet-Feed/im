@@ -252,3 +252,12 @@ func GetConversationBadges(ctx context.Context, userId int64, conShortIds []int6
 	}
 	return counts, nil
 }
+
+func MarkRead(ctx context.Context, req *im.MarkReadRequest) (resp *im.MarkReadResponse, err error) {
+	resp = &im.MarkReadResponse{
+		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
+	}
+	return resp, nil
+	//设置总、各会话未读数(im_counter_manager_rust)->设置已读index和count(im_conversation_api,redis hash,abase xset)->
+	//发送命令消息->更新最近会话(recent)->lastindex,保存,写命令链,push->发送已读消息(im_lastuser_api)
+}

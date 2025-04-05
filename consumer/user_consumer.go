@@ -21,7 +21,10 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	userId, _ := strconv.ParseInt(msgs[0].GetShardingKey(), 10, 64)
 	logrus.Infof("[UserProcess] rocketmq receive message success. message = %v, tag = %v", messageEvent, userId)
 	//TODO:判断是否为高频用户(本地+redis,写入高频队列batch)->处理重试消息
-	if messageEvent.GetMsgBody().GetMsgType() < 1000 {
+	pushRequest := &push.PushRequest{
+		UserId: userId,
+	}
+	if messageEvent.GetMsgBody().GetMsgType() != int32(im.MessageType_Command) {
 		if messageEvent.GetUserConIndex() == 0 {
 			userConIndex, preUserConIndex, err := biz.AppendUserConIndex(ctx, userId, messageEvent.GetMsgBody().GetConShortId())
 			if err != nil {
@@ -32,7 +35,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			messageEvent.PreUserConIndex = preUserConIndex
 		}
 		if messageEvent.GetBadgeCount() == 0 {
-			if userId != messageEvent.GetMsgBody().GetUserId() {
+			if userId != messageEvent.GetMsgBody().GetUserId() && messageEvent.GetMsgBody().GetMsgType() != int32(im.MessageType_Conversation) {
 				badgeCount, err := biz.IncrConversationBadge(ctx, userId, messageEvent.GetMsgBody().GetConShortId())
 				if err != nil {
 					logrus.Errorf("[UserProcess] IncrConversationBadge err. err = %v", err)
@@ -49,21 +52,29 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 				logrus.Info(badgeCount)
 			}
 		}
-	} else if messageEvent.GetUserCmdIndex() == 0 {
-		userCmdIndex, err := biz.AppendUserCmdIndex(ctx, userId, messageEvent.GetMsgBody().GetMsgId())
-		if err != nil {
-			logrus.Errorf("[UserProcess] AppendUserCmdIndex err. err = %v", err)
-			return mq.SendToRetry(ctx, "user", messageEvent)
+		normalPacket := &push.NormalPacket{
+			UserConIndex:    messageEvent.GetUserConIndex(),
+			PreUserConIndex: messageEvent.GetPreUserConIndex(),
+			BadgeCount:      messageEvent.GetBadgeCount(),
+			MsgBody:         messageEvent.GetMsgBody(),
 		}
-		messageEvent.UserCmdIndex = userCmdIndex
-	}
-	pushRequest := &push.PushRequest{
-		MsgBody:         messageEvent.GetMsgBody(),
-		ReceiverId:      userId,
-		BadgeCount:      messageEvent.GetBadgeCount(),
-		UserConIndex:    messageEvent.GetUserConIndex(),
-		PreUserConIndex: messageEvent.GetPreUserConIndex(),
-		UserCmdIndex:    messageEvent.GetUserCmdIndex(),
+		pushRequest.PacketType = push.PacketType_Normal
+		pushRequest.NormalPacket = normalPacket
+	} else {
+		if messageEvent.GetUserCmdIndex() == 0 {
+			userCmdIndex, err := biz.AppendUserCmdIndex(ctx, userId, messageEvent.GetMsgBody().GetMsgId())
+			if err != nil {
+				logrus.Errorf("[UserProcess] AppendUserCmdIndex err. err = %v", err)
+				return mq.SendToRetry(ctx, "user", messageEvent)
+			}
+			messageEvent.UserCmdIndex = userCmdIndex
+		}
+		commandPacket := &push.CommandPacket{
+			UserCmdIndex: messageEvent.GetUserCmdIndex(),
+			MsgBody:      messageEvent.GetMsgBody(),
+		}
+		pushRequest.PacketType = push.PacketType_Command
+		pushRequest.CommandPacket = commandPacket
 	}
 	err := backoff.Retry(func() error {
 		err := dal.PushServer.Push(ctx, pushRequest)
