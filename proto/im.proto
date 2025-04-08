@@ -27,6 +27,10 @@ enum MessageType{
 
 enum CommandType{
   CommandType_Not_Use = 0;
+  MarkRead = 1;
+  RecallMessage = 2;
+  DeleteMessage = 3;
+  UpdateMessage=4;
 }
 
 message MessageEvent{
@@ -123,6 +127,7 @@ message SendMessageRequest{
   string msg_content = 7;
 }
 message SendMessageResponse{
+  int64 msg_id = 1;
   common.BaseResp baseResp = 255;
 }
 

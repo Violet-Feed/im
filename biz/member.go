@@ -25,32 +25,32 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 	}
 	conShortId := req.GetConShortId()
 	//判断群是否存在
-	cores, err := GetConversationCores(ctx, []int64{conShortId})
+	cores, err := GetConversationCores(ctx, []int64{conShortId}, false)
 	if err != nil {
 		logrus.Errorf("[AddConversationMembers] GetConversationCores err. err = %v", err)
-		resp.BaseResp.StatusCode = common.StatusCode_Server_Error
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
 		return resp, err
 	}
-	if len(cores) == 0 || cores[0].GetStatus() != 0 || cores[0].GetConType() != int32(im.ConversationType_Group_Chat) {
-		resp.BaseResp.StatusCode = common.StatusCode_Not_Found_Error
+	if len(cores) == 0 || cores[0] == nil || cores[0].GetStatus() != 0 || cores[0].GetConType() != int32(im.ConversationType_Group_Chat) {
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "会话不存在"}
 		return resp, nil
 	}
 	//获取成员数量
 	locked := dal.RedisServer.Lock(ctx, fmt.Sprintf("user_count:%d", conShortId))
 	if !locked {
 		logrus.Errorf("[AddConversationMembers] Lock err.")
-		resp.BaseResp.StatusCode = common.StatusCode_OverFrequency_Error
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_OverFrequency_Error, StatusMessage: "访问频繁"}
 		return resp, err
 	}
 	defer dal.RedisServer.Unlock(ctx, fmt.Sprintf("user_count:%d", conShortId))
 	count, err := model.GetUserCount(ctx, conShortId)
 	if err != nil {
 		logrus.Errorf("[AddConversationMembers] GetUserCount err. err = %v", err)
-		resp.BaseResp.StatusCode = common.StatusCode_Server_Error
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
 		return resp, err
 	}
 	if count+len(req.GetMembers()) > ConversationLimit {
-		resp.BaseResp.StatusCode = common.StatusCode_OverLimit_Error
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_OverLimit_Error, StatusMessage: "成员数量达到上限"}
 		return resp, nil
 	}
 	//创建userInfo
@@ -65,7 +65,7 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 	err = model.InsertUserInfos(ctx, conShortId, userModels)
 	if err != nil {
 		logrus.Errorf("[AddConversationMembers] InsertUserInfos err. err = %v", err)
-		resp.BaseResp.StatusCode = common.StatusCode_Server_Error
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
 		return resp, err
 	}
 	//获取设置index

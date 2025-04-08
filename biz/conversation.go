@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/redis/go-redis/v9"
@@ -73,7 +74,7 @@ func CreateConversation(ctx context.Context, req *im.CreateConversationRequest) 
 	//(幂等创建Identity->写redis->)创建/更新core->写redis->发送命令消息，单聊更新setting，群聊添加成员、审核开关
 }
 
-func GetConversationCores(ctx context.Context, conShortIds []int64) ([]*im.ConversationCoreInfo, error) {
+func GetConversationCores(ctx context.Context, conShortIds []int64, needUserCount bool) ([]*im.ConversationCoreInfo, error) {
 	coreInfos := make([]*im.ConversationCoreInfo, 0)
 	if len(conShortIds) == 0 {
 		return coreInfos, nil
@@ -86,25 +87,27 @@ func GetConversationCores(ctx context.Context, conShortIds []int64) ([]*im.Conve
 	for _, id := range conShortIds {
 		coreInfos = append(coreInfos, model.PackCoreInfo(coresMap[id]))
 	}
-	countChan := make([]chan int, len(conShortIds))
-	for i := range countChan {
-		countChan[i] = make(chan int)
-	}
-	for i, conShortId := range conShortIds {
-		go func(i int, conShortId int64) {
-			count, err := model.GetUserCount(ctx, conShortId)
-			if err != nil {
-				logrus.Errorf("[GetConversationCores] GetUserCount err. err = %v", err)
-				countChan[i] <- 0
-			}
-			countChan[i] <- count
-		}(i, conShortId)
-	}
-	for i := 0; i < len(conShortIds); i++ {
-		if coreInfos[i] == nil {
-			<-countChan[i]
+	if needUserCount {
+		countChan := make([]chan int, len(conShortIds))
+		for i := range countChan {
+			countChan[i] = make(chan int)
 		}
-		coreInfos[i].MemberCount = int32(<-countChan[i])
+		for i, conShortId := range conShortIds {
+			go func(i int, conShortId int64) {
+				count, err := model.GetUserCount(ctx, conShortId)
+				if err != nil {
+					logrus.Errorf("[GetConversationCores] GetUserCount err. err = %v", err)
+					countChan[i] <- 0
+				}
+				countChan[i] <- count
+			}(i, conShortId)
+		}
+		for i := 0; i < len(conShortIds); i++ {
+			if coreInfos[i] == nil {
+				<-countChan[i]
+			}
+			coreInfos[i].MemberCount = int32(<-countChan[i])
+		}
 	}
 	return coreInfos, nil
 	//redis mget key:convId,mysql,redis一天
@@ -140,6 +143,11 @@ func GetConversationSettings(ctx context.Context, userId int64, conShortIds []in
 	for _, id := range conShortIds {
 		settingInfos = append(settingInfos, model.PackSettingInfo(settingModel[id]))
 	}
+	readIndexStart, err := model.GetReadIndexStart(ctx, conShortIds, userId)
+	if err != nil {
+		logrus.Errorf("[GetConversationSettings] GetReadIndexStart err. err = %v", err)
+		return nil, err
+	}
 	readIndexEnd, err := model.GetReadIndexEnd(ctx, conShortIds, userId)
 	if err != nil {
 		logrus.Errorf("[GetConversationSettings] GetReadIndexEnd err. err = %v", err)
@@ -152,6 +160,7 @@ func GetConversationSettings(ctx context.Context, userId int64, conShortIds []in
 	}
 	for i, conShortId := range conShortIds {
 		if settingInfos[i] != nil {
+			settingInfos[i].MinIndex = readIndexStart[conShortId]
 			settingInfos[i].ReadIndexEnd = readIndexEnd[conShortId]
 			settingInfos[i].ReadBadgeCount = readBadge[conShortId]
 		}
@@ -164,7 +173,7 @@ func GetConversationSettings(ctx context.Context, userId int64, conShortIds []in
 }
 
 func fillSettingModel(ctx context.Context, userId int64, conShortIds []int64) (map[int64]*model.ConversationSettingInfo, error) {
-	cores, err := GetConversationCores(ctx, conShortIds)
+	cores, err := GetConversationCores(ctx, conShortIds, false)
 	if err != nil {
 		logrus.Errorf("[fillSettingModel] GetConversationCores err. err = %v", err)
 		return nil, err
@@ -256,6 +265,48 @@ func GetConversationBadges(ctx context.Context, userId int64, conShortIds []int6
 func MarkRead(ctx context.Context, req *im.MarkReadRequest) (resp *im.MarkReadResponse, err error) {
 	resp = &im.MarkReadResponse{
 		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
+	}
+	cores, err := GetConversationCores(ctx, []int64{req.GetConShortId()}, false)
+	if err != nil {
+		logrus.Errorf("[MarkRead] GetConversationCores err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, nil
+	} else if len(cores) == 0 || cores[0] == nil || cores[0].GetStatus() != 0 {
+		logrus.Errorf("[MarkRead] GetConversationCores err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "会话不存在"}
+		return resp, nil
+	}
+	err = model.SetReadBadge(ctx, req.GetConShortId(), []int64{req.GetUserId()}, req.GetReadBadgeCount())
+	if err != nil {
+		logrus.Errorf("[MarkRead] SetReadBadge err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, nil
+	}
+	err = model.SetReadIndexEnd(ctx, req.GetConShortId(), []int64{req.GetUserId()}, req.GetReadConIndex())
+	if err != nil {
+		logrus.Errorf("[MarkRead] SetReadIndexEnd err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, nil
+	}
+	cmdMessage := map[string]interface{}{
+		"cmd_type":       im.CommandType_MarkRead,
+		"read_badge":     req.GetReadBadgeCount(),
+		"read_index_end": req.GetReadConIndex(),
+	}
+	cmdMessageByte, _ := json.Marshal(cmdMessage)
+	sendMessageRequest := &im.SendMessageRequest{
+		UserId:     req.GetUserId(),
+		ConShortId: req.GetConShortId(),
+		ConId:      cores[0].GetConId(),
+		ConType:    cores[0].GetConType(),
+		MsgType:    int32(im.MessageType_Command),
+		MsgContent: string(cmdMessageByte),
+	}
+	_, err = SendMessage(ctx, sendMessageRequest)
+	if err != nil {
+		logrus.Errorf("[MarkRead] SendMessage err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, nil
 	}
 	return resp, nil
 	//设置总、各会话未读数(im_counter_manager_rust)->设置已读index和count(im_conversation_api,redis hash,abase xset)->

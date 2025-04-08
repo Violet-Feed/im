@@ -104,6 +104,7 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 		return resp, err
 	}
+	resp.MsgId = messageId
 	return resp, nil
 }
 
@@ -217,7 +218,7 @@ func GetMessageByInit(ctx context.Context, req *im.GetMessageByInitRequest) (res
 		}()
 		//获取会话core
 		go func() {
-			cores, err := GetConversationCores(ctx, conShortIds)
+			cores, err := GetConversationCores(ctx, conShortIds, true)
 			if err != nil {
 				logrus.Errorf("[GetMessageByInit] GetConversationCores err. err = %v", err)
 				coresMapChan <- nil
@@ -360,13 +361,13 @@ func GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversat
 		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
 	}
 	userId := req.GetUserId()
-	cores, err := GetConversationCores(ctx, []int64{req.GetConShortId()})
+	cores, err := GetConversationCores(ctx, []int64{req.GetConShortId()}, false)
 	if err != nil {
 		logrus.Errorf("[GetMessageByConversation] GetConversationCores err. err = %v", err)
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 		return resp, err
 	}
-	if len(cores) == 0 || cores[0].GetStatus() != 0 {
+	if len(cores) == 0 || cores[0] == nil || cores[0].GetStatus() != 0 {
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "会话不存在"}
 		return resp, errors.New("conversation not found")
 	}
