@@ -19,6 +19,7 @@ import (
 
 const (
 	ConvLimit = 50
+	CmdLimit  = 200
 	MsgLimit  = 5
 )
 
@@ -29,7 +30,7 @@ func checkMessageSendRequest(req *im.SendMessageRequest) bool {
 	if req.GetConType() < 1 || req.GetConType() > 5 {
 		return false
 	}
-	if req.GetMsgType() < 1 || req.GetMsgType() > 5 && req.GetMsgType() != 1000 {
+	if req.GetMsgType() < 1 || req.GetMsgType() > 5 && req.GetMsgType() != 101 && req.GetMsgType() != 102 {
 		return false
 	}
 	if req.GetMsgContent() == "" {
@@ -130,10 +131,35 @@ func GetMessages(ctx context.Context, conShortId int64, msgIds []int64) ([]*im.M
 	return messageBodies, nil
 }
 
+func GetCommands(ctx context.Context, userId int64, msgIds []int64) ([]*im.MessageBody, error) {
+	messageBodies := make([]*im.MessageBody, 0)
+	if len(msgIds) == 0 {
+		return messageBodies, nil
+	}
+	keys := make([]string, 0)
+	for _, id := range msgIds {
+		keys = append(keys, fmt.Sprintf("cmd:%d:%d", userId, id))
+	}
+	messages, err := dal.KvrocksServer.MGet(ctx, keys)
+	if err != nil {
+		logrus.Errorf("[GetCommands] kvrocks mget err. err = %v", err)
+		return nil, err
+	}
+	for _, message := range messages {
+		var messageBody im.MessageBody
+		_ = json.Unmarshal([]byte(message), &messageBody)
+		messageBodies = append(messageBodies, &messageBody)
+	}
+	return messageBodies, nil
+}
+
 func StoreMessage(ctx context.Context, msgBody *im.MessageBody) error {
-	conShortId := msgBody.GetConShortId()
-	messageId := msgBody.GetMsgId()
-	key := fmt.Sprintf("msg:%d:%d", conShortId, messageId)
+	var key string
+	if msgBody.MsgType > 100 {
+		key = fmt.Sprintf("cmd:%d:%d", msgBody.GetUserId(), msgBody.GetMsgId())
+	} else {
+		key = fmt.Sprintf("msg:%d:%d", msgBody.GetConShortId(), msgBody.GetMsgId())
+	}
 	messageBody, err := json.Marshal(msgBody)
 	if err != nil {
 		logrus.Errorf("[StoreMessage] marshal messageBody err. err = %v", err)
@@ -147,208 +173,176 @@ func StoreMessage(ctx context.Context, msgBody *im.MessageBody) error {
 	return nil
 }
 
-func GetMessageByInit(ctx context.Context, req *im.GetMessageByInitRequest) (resp *im.GetMessageByInitResponse, err error) {
-	resp = &im.GetMessageByInitResponse{
+func GetMessageByUser(ctx context.Context, req *im.GetMessageByUserRequest) (resp *im.GetMessageByUserResponse, err error) {
+	resp = &im.GetMessageByUserResponse{
 		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
 	}
-	userId := req.GetUserId()
-	var globalErr error
-	conMsgsChan, hasMoreChan, nextUserConIndexChan, userConIndexChan, userCmdIndexChan := make(chan []*im.ConversationMessage), make(chan bool), make(chan int64), make(chan int64), make(chan int64)
+	limit := req.GetLimit()
+	if limit > ConvLimit {
+		limit = ConvLimit
+	}
 	//拉取用户会话链
+	conShortIds, userConIndexes, err := PullUserConIndex(ctx, req.GetUserId(), req.GetUserConIndex(), limit+1)
+	if err != nil {
+		logrus.Errorf("[GetMessageByUser] PullUserConIndex err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
+		return resp, err
+	}
+	if int64(len(conShortIds)) == limit+1 {
+		resp.HasMore = true
+		conShortIds = conShortIds[:len(conShortIds)-1]
+		userConIndexes = userConIndexes[:len(userConIndexes)-1]
+	} else {
+		resp.HasMore = false
+	}
+	if len(userConIndexes) == 0 {
+		resp.UserConIndex = 0
+	} else {
+		resp.UserConIndex = userConIndexes[len(userConIndexes)-1]
+	}
+	var globalErr error
+	msgBodiesMapChan, coresMapChan, settingsMapChan := make(chan map[int64][]*im.MessageBody), make(chan map[int64]*im.ConversationCoreInfo), make(chan map[int64]*im.ConversationSettingInfo)
+	statusMapChan, badgesMapChan := make(chan map[int64]int32), make(chan map[int64]int64)
+	//拉取会话链
 	go func() {
-		userConIndex := req.GetUserConIndex()
-		if userConIndex == 0 {
-			userConIndex = math.MaxInt64
+		msgBodiesChan := make(chan []*im.MessageBody, len(conShortIds))
+		for _, convShortId := range conShortIds {
+			go func(convShortId int64) {
+				msgIds, conIndexes, err := PullConversationIndex(ctx, convShortId, math.MaxInt64, MsgLimit)
+				if err != nil {
+					logrus.Errorf("[GetMessageByUser] PullConversationIndex err. err = %v", err)
+					msgBodiesChan <- nil
+					return
+				}
+				//TODO:过滤撤回消息
+				msgBodies, err := GetMessages(ctx, convShortId, msgIds)
+				if err != nil {
+					logrus.Errorf("[GetMessageByUser] GetMessage err. err = %v", err)
+					msgBodiesChan <- nil
+					return
+				}
+				for i, msgBody := range msgBodies {
+					msgBody.ConIndex = conIndexes[i]
+				}
+				msgBodiesChan <- msgBodies
+			}(convShortId)
 		}
-		conShortIds, userConIndexs, hasMore, err := PullUserConIndex(ctx, userId, userConIndex, ConvLimit)
+		msgBodiesMap := make(map[int64][]*im.MessageBody)
+		for i := 0; i < len(conShortIds); i++ {
+			msgBodies := <-msgBodiesChan
+			if msgBodies != nil {
+				msgBodiesMap[msgBodies[0].GetConShortId()] = msgBodies
+			}
+		}
+		msgBodiesMapChan <- msgBodiesMap
+	}()
+	//获取会话core
+	go func() {
+		cores, err := GetConversationCores(ctx, conShortIds, true)
 		if err != nil {
-			logrus.Errorf("[GetMessageByInit] PullUserConIndex err. err = %v", err)
-			conMsgsChan <- nil
-			hasMoreChan <- false
-			nextUserConIndexChan <- 0
-			userConIndexChan <- 0
+			logrus.Errorf("[GetMessageByUser] GetConversationCores err. err = %v", err)
+			coresMapChan <- nil
+			statusMapChan <- nil
 			globalErr = err
 			return
 		}
-		hasMoreChan <- hasMore
-		if hasMore == true {
-			nextUserConIndexChan <- userConIndexs[len(userConIndexs)-1] - 1
-		} else {
-			nextUserConIndexChan <- 0
+		coresMap := make(map[int64]*im.ConversationCoreInfo)
+		for _, core := range cores {
+			coresMap[core.GetConShortId()] = core
 		}
-		if len(userConIndexs) > 0 {
-			userConIndexChan <- userConIndexs[0]
-		} else {
-			userConIndexChan <- 0
-		}
-		msgBodiesMapChan, coresMapChan, settingsMapChan := make(chan map[int64][]*im.MessageBody), make(chan map[int64]*im.ConversationCoreInfo), make(chan map[int64]*im.ConversationSettingInfo)
-		statusMapChan, badgesMapChan := make(chan map[int64]int32), make(chan map[int64]int64)
-		//拉取会话链
+		coresMapChan <- coresMap
+		//获取是否是会话member
 		go func() {
-			msgBodiesChan := make(chan []*im.MessageBody, len(conShortIds))
-			for _, convShortId := range conShortIds {
-				go func(convShortId int64) {
-					msgIds, conIndexs, err := PullConversationIndex(ctx, convShortId, math.MaxInt64, MsgLimit)
-					if err != nil {
-						logrus.Errorf("[GetMessageByInit] PullConversationIndex err. err = %v", err)
-						msgBodiesChan <- nil
-						return
-					}
-					//TODO:过滤撤回消息
-					msgBodies, err := GetMessages(ctx, convShortId, msgIds)
-					if err != nil {
-						logrus.Errorf("[GetMessageByInit] GetMessage err. err = %v", err)
-						msgBodiesChan <- nil
-						return
-					}
-					for i, msgBody := range msgBodies {
-						msgBody.ConIndex = conIndexs[i]
-					}
-					msgBodiesChan <- msgBodies
-				}(convShortId)
-			}
-			msgBodiesMap := make(map[int64][]*im.MessageBody)
-			for i := 0; i < len(conShortIds); i++ {
-				msgBodies := <-msgBodiesChan
-				if msgBodies != nil {
-					msgBodiesMap[msgBodies[0].GetConShortId()] = msgBodies
+			statusMap := make(map[int64]int32)
+			groupIds := make([]int64, 0)
+			for _, conShortId := range conShortIds {
+				core := coresMap[conShortId]
+				if core.GetConType() == int32(im.ConversationType_One_Chat) {
+					statusMap[conShortId] = IsSingleMember(ctx, core.GetConId(), req.GetUserId())
+				} else if core.GetConType() == int32(im.ConversationType_Group_Chat) {
+					groupIds = append(groupIds, conShortId)
 				}
 			}
-			msgBodiesMapChan <- msgBodiesMap
-		}()
-		//获取会话core
-		go func() {
-			cores, err := GetConversationCores(ctx, conShortIds, true)
+			status, err := IsGroupsMember(ctx, groupIds, req.GetUserId())
 			if err != nil {
-				logrus.Errorf("[GetMessageByInit] GetConversationCores err. err = %v", err)
-				coresMapChan <- nil
-				statusMapChan <- nil
-				globalErr = err
-				return
-			}
-			coresMap := make(map[int64]*im.ConversationCoreInfo)
-			for _, core := range cores {
-				coresMap[core.GetConShortId()] = core
-			}
-			coresMapChan <- coresMap
-			//获取是否是会话member
-			go func() {
-				statusMap := make(map[int64]int32)
-				groupIds := make([]int64, 0)
-				for _, conShortId := range conShortIds {
-					core := coresMap[conShortId]
-					if core.GetConType() == int32(im.ConversationType_One_Chat) {
-						statusMap[conShortId] = IsSingleMember(ctx, core.GetConId(), userId)
-					} else if core.GetConType() == int32(im.ConversationType_Group_Chat) {
-						groupIds = append(groupIds, conShortId)
-					}
-				}
-				status, err := IsGroupsMember(ctx, groupIds, userId)
-				if err != nil {
-					logrus.Errorf("[GetMessageByInit] IsConversationMembers err. err = %v", err)
-					statusMapChan <- statusMap
-					return
-				}
-				for k, v := range status {
-					statusMap[k] = v
-				}
+				logrus.Errorf("[GetMessageByUser] IsConversationMembers err. err = %v", err)
 				statusMapChan <- statusMap
-			}()
-			//TODO:获取最近member，id昵称权限block
-			go func() {
-				_, err := GetConversationMemberInfos(ctx, 0, []int64{0})
-				if err != nil {
-					logrus.Errorf("[GetMessageByInit] GetConversationUsers err. err = %v", err)
-					return
-				}
-			}()
-		}()
-		//获取会话setting
-		go func() {
-			settings, err := GetConversationSettings(ctx, userId, conShortIds)
-			if err != nil {
-				logrus.Errorf("[GetMessageByInit] GetConversationSettings err. err = %v", err)
-				settingsMapChan <- nil
-				globalErr = err
 				return
 			}
-			settingsMap := make(map[int64]*im.ConversationSettingInfo)
-			for _, setting := range settings {
-				settingsMap[setting.GetConShortId()] = setting
+			for k, v := range status {
+				statusMap[k] = v
 			}
-			settingsMapChan <- settingsMap
+			statusMapChan <- statusMap
 		}()
-		//获取会话badge
+		//TODO:获取最近member，id昵称权限block
 		go func() {
-			badges, err := GetConversationBadges(ctx, userId, conShortIds)
+			_, err := GetConversationMemberInfos(ctx, 0, []int64{0})
 			if err != nil {
-				logrus.Errorf("[GetMessageByInit] GetConversationBadge err. err = %v", err)
-				badgesMapChan <- nil
+				logrus.Errorf("[GetMessageByUser] GetConversationMemberInfos err. err = %v", err)
 				return
 			}
-			badgesMap := make(map[int64]int64)
-			for i, conShortId := range conShortIds {
-				badgesMap[conShortId] = badges[i]
-			}
-			badgesMapChan <- badgesMap
 		}()
-		msgBodiesMap := <-msgBodiesMapChan
-		coresMap := <-coresMapChan
-		settingsMap := <-settingsMapChan
-		statusMap := <-statusMapChan
-		badgesMap := <-badgesMapChan
-		conMsgs := make([]*im.ConversationMessage, 0)
-		//TODO:通过minIndex过滤消息,过滤非成员，无core、setting
-		for i, conShortId := range conShortIds {
-			core := coresMap[conShortId]
-			conInfo := &im.ConversationInfo{
-				ConShortId:     core.GetConShortId(),
-				ConId:          core.GetConId(),
-				ConType:        core.GetConType(),
-				UserConIndex:   userConIndexs[i],
-				BadgeCount:     badgesMap[conShortId],
-				IsMember:       statusMap[conShortId] == 1,
-				ConCoreInfo:    core,
-				ConSettingInfo: settingsMap[conShortId],
-			}
-			conMsg := &im.ConversationMessage{
-				ConInfo:   conInfo,
-				MsgBodies: msgBodiesMap[conShortId],
-			}
-			conMsgs = append(conMsgs, conMsg)
-		}
-		conMsgsChan <- conMsgs
 	}()
-	//获取用户命令链index
+	//获取会话setting
 	go func() {
-		if req.GetUserConIndex() != 0 {
-			userCmdIndexChan <- 0
-			return
-		}
-		_, userCmdIndex, err := PullUserCmdIndex(ctx, userId, math.MaxInt64, 1)
+		settings, err := GetConversationSettings(ctx, req.GetUserId(), conShortIds)
 		if err != nil {
-			logrus.Errorf("[GetMessageByInit] PullUserCmdIndex err. err = %v", err)
-			userCmdIndexChan <- 0
+			logrus.Errorf("[GetMessageByUser] GetConversationSettings err. err = %v", err)
+			settingsMapChan <- nil
 			globalErr = err
 			return
 		}
-		userCmdIndexChan <- userCmdIndex
+		settingsMap := make(map[int64]*im.ConversationSettingInfo)
+		for _, setting := range settings {
+			settingsMap[setting.GetConShortId()] = setting
+		}
+		settingsMapChan <- settingsMap
 	}()
-	hasMore := <-hasMoreChan
-	nextUserConIndex := <-nextUserConIndexChan
-	userConIndex := <-userConIndexChan
-	userCmdIndex := <-userCmdIndexChan
-	conMsgs := <-conMsgsChan
+	//获取会话badge
+	go func() {
+		badges, err := GetConversationBadges(ctx, req.GetUserId(), conShortIds)
+		if err != nil {
+			logrus.Errorf("[GetMessageByUser] GetConversationBadge err. err = %v", err)
+			badgesMapChan <- nil
+			return
+		}
+		badgesMap := make(map[int64]int64)
+		for i, conShortId := range conShortIds {
+			badgesMap[conShortId] = badges[i]
+		}
+		badgesMapChan <- badgesMap
+	}()
+	msgBodiesMap := <-msgBodiesMapChan
+	coresMap := <-coresMapChan
+	settingsMap := <-settingsMapChan
+	statusMap := <-statusMapChan
+	badgesMap := <-badgesMapChan
 	if globalErr != nil {
-		logrus.Errorf("[GetMessageByInit] happend err.")
+		logrus.Errorf("[GetMessageByUser] happend err.")
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: globalErr.Error()}
 		return resp, globalErr
 	}
-	resp.Cons = conMsgs
-	resp.HasMore = hasMore
-	resp.NextUserConIndex = nextUserConIndex
-	resp.UserConIndex = userConIndex
-	resp.UserCmdIndex = userCmdIndex
+	conMessages := make([]*im.ConversationMessage, 0)
+	//TODO:通过minIndex过滤消息,过滤非成员，无core、setting
+	for i, conShortId := range conShortIds {
+		core := coresMap[conShortId]
+		conInfo := &im.ConversationInfo{
+			ConShortId:     core.GetConShortId(),
+			ConId:          core.GetConId(),
+			ConType:        core.GetConType(),
+			UserConIndex:   userConIndexes[i],
+			BadgeCount:     badgesMap[conShortId],
+			IsMember:       statusMap[conShortId] == 1,
+			ConCoreInfo:    core,
+			ConSettingInfo: settingsMap[conShortId],
+		}
+		conMessage := &im.ConversationMessage{
+			ConInfo:   conInfo,
+			MsgBodies: msgBodiesMap[conShortId],
+		}
+		conMessages = append(conMessages, conMessage)
+	}
+	resp.Cons = conMessages
 	return resp, nil
 	//获取最近会话id(recent_conversation,abase,zset)->拉取会话链(inbox_api,V2)->获取消息内容(message_api)->隐藏撤回消息
 	//->获取会话core,setting信息(im_conversation_api)->获取会话ext信息(conversation_ext)->获取群聊是否是成员,最近成员信息(im_conversation_api)
@@ -356,11 +350,46 @@ func GetMessageByInit(ctx context.Context, req *im.GetMessageByInitRequest) (res
 	//->信息整理过滤
 }
 
+func GetCommandByUser(ctx context.Context, req *im.GetCommandByUserRequest) (resp *im.GetCommandByUserResponse, err error) {
+	resp = &im.GetCommandByUserResponse{
+		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
+	}
+	limit := req.GetLimit()
+	if limit > CmdLimit {
+		limit = CmdLimit
+	}
+	msgIds, userCmdIndexes, err := PullUserCmdIndex(ctx, req.GetUserId(), req.GetUserCmdIndex(), limit+1)
+	if err != nil {
+		logrus.Errorf("[GetCommandByUser] PullUserCmdIndex err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
+		return resp, err
+	}
+	if int64(len(msgIds)) == limit+1 {
+		resp.HasMore = true
+		msgIds = msgIds[:len(msgIds)-1]
+		userCmdIndexes = userCmdIndexes[:len(userCmdIndexes)-1]
+	} else {
+		resp.HasMore = false
+	}
+	if len(userCmdIndexes) == 0 {
+		resp.UserCmdIndex = 0
+	} else {
+		resp.UserCmdIndex = userCmdIndexes[len(userCmdIndexes)-1]
+	}
+	msgBodies, err := GetCommands(ctx, req.GetUserId(), msgIds)
+	if err != nil {
+		logrus.Errorf("[GetCommandByUser] GetCommands err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
+		return resp, err
+	}
+	resp.MsgBodies = msgBodies
+	return resp, nil
+}
+
 func GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversationRequest) (resp *im.GetMessageByConversationResponse, err error) {
 	resp = &im.GetMessageByConversationResponse{
 		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
 	}
-	userId := req.GetUserId()
 	cores, err := GetConversationCores(ctx, []int64{req.GetConShortId()}, false)
 	if err != nil {
 		logrus.Errorf("[GetMessageByConversation] GetConversationCores err. err = %v", err)
@@ -374,9 +403,9 @@ func GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversat
 	//是否群成员
 	var isMember int32
 	if cores[0].GetConType() == int32(im.ConversationType_One_Chat) {
-		isMember = IsSingleMember(ctx, cores[0].GetConId(), userId)
+		isMember = IsSingleMember(ctx, cores[0].GetConId(), req.GetUserId())
 	} else if cores[0].GetConType() == int32(im.ConversationType_Group_Chat) {
-		status, err := IsGroupsMember(ctx, []int64{req.GetConShortId()}, userId)
+		status, err := IsGroupsMember(ctx, []int64{req.GetConShortId()}, req.GetUserId())
 		if err != nil {
 			logrus.Errorf("[GetMessageByConversation] IsGroupsMember err. err = %v", err)
 			resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
@@ -389,7 +418,7 @@ func GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversat
 		return resp, errors.New("not conversation member")
 	}
 	//拉取会话链
-	msgIds, conIndexs, err := PullConversationIndex(ctx, req.GetConShortId(), req.GetConIndex(), req.GetLimit())
+	msgIds, conIndexes, err := PullConversationIndex(ctx, req.GetConShortId(), req.GetConIndex(), req.GetLimit())
 	if err != nil {
 		logrus.Errorf("[GetMessageByConversation] PullConversationIndex err. err = %v", err)
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
@@ -402,13 +431,9 @@ func GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversat
 		return resp, err
 	}
 	for i, msgBody := range msgBodies {
-		msgBody.ConIndex = conIndexs[i]
+		msgBody.ConIndex = conIndexes[i]
 	}
 	resp.MsgBodies = msgBodies
 	return resp, nil
 	//获取core信息(mysql)->获取成员数量(redis+mysql)->判断是否为成员(redis,mysql)->拉取会话链(loadmore)->隐藏撤回消息
-}
-
-func GetMessageByUser(ctx context.Context) {
-	//是否有stranger消息(conversation_rust)->拉取命令链(inbox_api,V2)->获取最近读会话及已读index(recent,im_conversation_api)->获取咨询、通知会话(recent_conversation)
 }

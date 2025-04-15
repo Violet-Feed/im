@@ -147,7 +147,7 @@ func PackSettingInfo(model *ConversationSettingInfo) *im.ConversationSettingInfo
 }
 
 func SetReadIndexStart(ctx context.Context, conShortId int64, userIds []int64, index int64) error {
-	var values map[string]string
+	values := make(map[string]string)
 	for _, userId := range userIds {
 		key := fmt.Sprintf("read_start:%d:%d", userId, conShortId)
 		values[key] = strconv.FormatInt(index, 10)
@@ -184,7 +184,7 @@ func GetReadIndexStart(ctx context.Context, conShortIds []int64, userId int64) (
 }
 
 func SetReadIndexEnd(ctx context.Context, conShortId int64, userIds []int64, index int64) error {
-	var values map[string]string
+	values := make(map[string]string)
 	for _, userId := range userIds {
 		key := fmt.Sprintf("read_end:%d:%d", userId, conShortId)
 		values[key] = strconv.FormatInt(index, 10)
@@ -220,8 +220,31 @@ func GetReadIndexEnd(ctx context.Context, conShortIds []int64, userId int64) (ma
 	return indexMap, nil
 }
 
+func GetMemberReadIndexEnd(ctx context.Context, conShortId int64, userIds []int64) (map[int64]int64, error) {
+	var keys []string
+	for _, userId := range userIds {
+		key := fmt.Sprintf("read_end:%d:%d", userId, conShortId)
+		keys = append(keys, key)
+	}
+	results, err := dal.KvrocksServer.MGet(ctx, keys)
+	if err != nil {
+		logrus.Errorf("[GetReadIndexEnd] kvrocks mget err. err = %v", err)
+		return nil, err
+	}
+	indexMap := make(map[int64]int64)
+	for i, userId := range userIds {
+		if results[i] != "" {
+			readIndex, _ := strconv.ParseInt(results[i], 10, 64)
+			indexMap[userId] = readIndex
+		} else {
+			indexMap[userId] = 0
+		}
+	}
+	return indexMap, nil
+}
+
 func SetReadBadge(ctx context.Context, conShortId int64, userIds []int64, count int64) error {
-	var values map[string]string
+	values := make(map[string]string)
 	for _, userId := range userIds {
 		key := fmt.Sprintf("read_badge:%d:%d", userId, conShortId)
 		values[key] = strconv.FormatInt(count, 10)

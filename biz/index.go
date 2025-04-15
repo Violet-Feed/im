@@ -7,6 +7,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"im/dal"
+	"math"
 	"strconv"
 	"time"
 )
@@ -156,7 +157,7 @@ func PullConversationIndex(ctx context.Context, conShortId int64, conIndex int64
 	segKey := fmt.Sprintf("conv_segment:%d", conShortId)
 	seg, err := dal.KvrocksServer.Get(ctx, segKey)
 	if errors.Is(err, redis.Nil) {
-		return nil, nil, nil
+		return []int64{}, []int64{}, nil
 	} else if err != nil {
 		logrus.Errorf("[PullConversationIndex] kvrocks get seg err. err = %v", err)
 		return nil, nil, err
@@ -175,8 +176,8 @@ func PullConversationIndex(ctx context.Context, conShortId int64, conIndex int64
 		segment = (conIndex - 1) / SegmentLimit
 		conIndex = (conIndex-1)%SegmentLimit + 1
 	}
-	msgIds, conIndexs := make([]int64, 0), make([]int64, 0)
-	//反向拉链
+	msgIds, conIndexes := make([]int64, 0), make([]int64, 0)
+	//从大到小拉链
 	for limit > 0 && segment >= 0 {
 		indexKey = fmt.Sprintf("conv_index:%d:%d", conShortId, segment)
 		if len(msgIds) == 0 {
@@ -189,7 +190,7 @@ func PullConversationIndex(ctx context.Context, conShortId int64, conIndex int64
 			}
 		}
 		if length == 0 && len(msgIds) > 0 {
-			return msgIds, conIndexs, nil
+			return msgIds, conIndexes, nil
 		}
 		var start, stop int64
 		if length > limit {
@@ -202,100 +203,84 @@ func PullConversationIndex(ctx context.Context, conShortId int64, conIndex int64
 			logrus.Errorf("[PullConversationIndex] kvrocks lrange err. err = %v", err)
 			return nil, nil, err
 		}
-		for i := 0; i < len(subMsgIds); i++ {
+		for i := len(subMsgIds) - 1; i >= 0; i-- {
 			msgId, _ := strconv.ParseInt(subMsgIds[i], 10, 64)
 			msgIds = append(msgIds, msgId)
-			conIndexs = append(conIndexs, segment*SegmentLimit+start+int64(i)+1)
+			conIndexes = append(conIndexes, segment*SegmentLimit+start+int64(i)+1)
 		}
 		segment--
 		limit -= stop - start + 1
 	}
-	return msgIds, conIndexs, nil
+	return msgIds, conIndexes, nil
 }
 
-func PullUserCmdIndex(ctx context.Context, userId int64, userCmdIndex int64, limit int64) ([]int64, int64, error) {
+func PullUserCmdIndex(ctx context.Context, userId int64, userCmdIndex int64, limit int64) ([]int64, []int64, error) {
 	segKey := fmt.Sprintf("user_segment:%d", userId)
 	seg, err := dal.KvrocksServer.Get(ctx, segKey)
 	if errors.Is(err, redis.Nil) {
-		return nil, 0, nil
+		return []int64{}, []int64{}, nil
 	} else if err != nil {
 		logrus.Errorf("[PullUserCmdIndex] kvrocks get seg err. err = %v", err)
-		return nil, 0, err
+		return nil, nil, err
 	}
-	indexKey := fmt.Sprintf("user_cmd_index:%d:%s", userId, seg)
-	length, err := dal.KvrocksServer.LLen(ctx, indexKey)
-	if err != nil {
-		logrus.Errorf("[PullUserCmdIndex] kvrocks llen 1 err. err = %v", err)
-		return nil, 0, err
-	}
-	segment, _ := strconv.ParseInt(seg, 10, 64)
-	maxIndex := segment*SegmentLimit + length
-	if userCmdIndex > maxIndex {
-		userCmdIndex = (maxIndex-1)%SegmentLimit + 1
-	} else {
-		segment = (userCmdIndex - 1) / SegmentLimit
-		userCmdIndex = (userCmdIndex-1)%SegmentLimit + 1
-	}
-	msgIds := make([]int64, 0)
-	for limit > 0 && segment >= 0 {
-		indexKey = fmt.Sprintf("user_cmd_index:%d:%d", userId, segment)
-		if len(msgIds) == 0 {
-			length = userCmdIndex
-		} else {
-			length, err = dal.KvrocksServer.LLen(ctx, indexKey)
-			if err != nil {
-				logrus.Errorf("[PullUserCmdIndex] kvrocks llen 2 err. err = %v", err)
-				return nil, 0, err
-			}
-		}
-		if length == 0 && len(msgIds) > 0 {
-			return msgIds, userCmdIndex, nil
+	maxSegment, _ := strconv.ParseInt(seg, 10, 64)
+	segment := (userCmdIndex - 1) / SegmentLimit
+	userCmdIndex = (userCmdIndex-1)%SegmentLimit + 1
+	msgIds, userCmdIndexes := make([]int64, 0), make([]int64, 0)
+	//从小到大拉链
+	for limit > 0 && segment <= maxSegment {
+		indexKey := fmt.Sprintf("user_cmd_index:%d:%d", userId, segment)
+		length, err := dal.KvrocksServer.LLen(ctx, indexKey)
+		if err != nil {
+			logrus.Errorf("[PullUserCmdIndex] kvrocks llen 2 err. err = %v", err)
+			return nil, nil, err
 		}
 		var start, stop int64
-		if length > limit {
-			start, stop = length-limit, length-1
+		if len(msgIds) == 0 {
+			length = length - userCmdIndex + 1
+			start = userCmdIndex - 1
 		} else {
-			start, stop = 0, length-1
+			start = 0
+		}
+		if length > limit {
+			stop = start + limit - 1
+		} else {
+			stop = start + length - 1
 		}
 		subMsgIds, err := dal.KvrocksServer.LRange(ctx, indexKey, start, stop)
 		if err != nil {
 			logrus.Errorf("[PullUserCmdIndex] kvrocks lrange err. err = %v", err)
-			return nil, 0, err
+			return nil, nil, err
 		}
-		for i := len(subMsgIds) - 1; i >= 0; i-- {
+		for i := 0; i < len(subMsgIds); i++ {
 			msgId, _ := strconv.ParseInt(subMsgIds[i], 10, 64)
 			msgIds = append(msgIds, msgId)
+			userCmdIndexes = append(userCmdIndexes, segment*SegmentLimit+start+int64(i)+1)
 		}
-		segment--
+		segment++
 		limit -= stop - start + 1
 	}
-	return msgIds, userCmdIndex, nil
+	return msgIds, userCmdIndexes, nil
 }
 
-func PullUserConIndex(ctx context.Context, userId int64, userConIndex int64, limit int64) ([]int64, []int64, bool, error) {
+func PullUserConIndex(ctx context.Context, userId int64, userConIndex int64, limit int64) ([]int64, []int64, error) {
 	key := fmt.Sprintf("user_con_index:%d", userId)
 	opt := &redis.ZRangeBy{
-		Min:   "0",
-		Max:   strconv.FormatInt(userConIndex, 10),
-		Count: limit + 1,
+		Min:   strconv.FormatInt(userConIndex, 10),
+		Max:   strconv.FormatInt(math.MaxInt64, 10),
+		Count: limit,
 	}
-	members, err := dal.KvrocksServer.ZRevRangByScoreWithScores(ctx, key, opt)
+	//从小到大拉链
+	members, err := dal.KvrocksServer.ZRangByScoreWithScores(ctx, key, opt)
 	if err != nil {
-		logrus.Errorf("[PullUserConIndex] kvrocks ZRevRangByScoreWithScores err. err = %v", err)
-		return nil, nil, false, err
+		logrus.Errorf("[PullUserConIndex] kvrocks ZRangByScoreWithScores err. err = %v", err)
+		return nil, nil, err
 	}
-	conShortIds, userConIndexs := make([]int64, 0), make([]int64, 0)
+	conShortIds, userConIndexes := make([]int64, 0), make([]int64, 0)
 	for _, member := range members {
 		conShortId, _ := strconv.ParseInt(member.Member.(string), 10, 64)
 		conShortIds = append(conShortIds, conShortId)
-		userConIndexs = append(userConIndexs, int64(member.Score))
+		userConIndexes = append(userConIndexes, int64(member.Score))
 	}
-	count := len(members)
-	hasMore := false
-	if int64(count) > limit {
-		hasMore = true
-		conShortIds = conShortIds[:limit]
-		userConIndexs = userConIndexs[:limit]
-	}
-	return conShortIds, userConIndexs, hasMore, nil
+	return conShortIds, userConIndexes, nil
 }

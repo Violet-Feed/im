@@ -19,7 +19,7 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	_ = json.Unmarshal(msgs[0].Body, &messageEvent)
 	logrus.Infof("[ConvProcess] rocketmq receive message success. message = %v", messageEvent)
 	//保存消息
-	if !messageEvent.GetStored() && messageEvent.GetMsgBody().GetMsgType() != int32(im.MessageType_Command) {
+	if !messageEvent.GetStored() {
 		err := biz.StoreMessage(ctx, messageEvent.GetMsgBody())
 		if err != nil {
 			logrus.Errorf("[ConvProcess] StoreMessage err. err = %v", err)
@@ -28,7 +28,7 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		messageEvent.Stored = true
 	}
 	//写入会话链
-	if messageEvent.GetConIndex() == 0 && messageEvent.GetMsgBody().GetMsgType() != int32(im.MessageType_Command) {
+	if messageEvent.GetConIndex() == 0 && messageEvent.GetMsgBody().GetMsgType() < 100 {
 		conIndex, err := biz.AppendConversationIndex(ctx, messageEvent.GetMsgBody().GetConShortId(), messageEvent.GetMsgBody().GetMsgId())
 		if err != nil {
 			logrus.Errorf("[ConvProcess] AppendConversationIndex err. err = %v", err)
@@ -53,6 +53,9 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 }
 
 func getReceivers(ctx context.Context, event *im.MessageEvent) ([]int64, error) {
+	if event.GetMsgBody().GetMsgType() == int32(im.MessageType_MarkRead) {
+		return []int64{event.GetMsgBody().GetUserId()}, nil
+	}
 	switch event.GetMsgBody().GetConType() {
 	case int32(im.ConversationType_One_Chat):
 		parts := strings.Split(event.GetMsgBody().GetConId(), ":")

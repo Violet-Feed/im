@@ -24,7 +24,8 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	pushRequest := &push.PushRequest{
 		UserId: userId,
 	}
-	if messageEvent.GetMsgBody().GetMsgType() != int32(im.MessageType_Command) {
+	if messageEvent.GetMsgBody().GetMsgType() < 100 {
+		//写入用户会话链
 		if messageEvent.GetUserConIndex() == 0 {
 			userConIndex, preUserConIndex, err := biz.AppendUserConIndex(ctx, userId, messageEvent.GetMsgBody().GetConShortId())
 			if err != nil {
@@ -34,6 +35,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			messageEvent.UserConIndex = userConIndex
 			messageEvent.PreUserConIndex = preUserConIndex
 		}
+		//增加消息总数
 		if messageEvent.GetBadgeCount() == 0 {
 			if userId != messageEvent.GetMsgBody().GetUserId() && messageEvent.GetMsgBody().GetMsgType() != int32(im.MessageType_Conversation) {
 				badgeCount, err := biz.IncrConversationBadge(ctx, userId, messageEvent.GetMsgBody().GetConShortId())
@@ -61,6 +63,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		pushRequest.PacketType = push.PacketType_Normal
 		pushRequest.NormalPacket = normalPacket
 	} else {
+		//写入用户命令链
 		if messageEvent.GetUserCmdIndex() == 0 {
 			userCmdIndex, err := biz.AppendUserCmdIndex(ctx, userId, messageEvent.GetMsgBody().GetMsgId())
 			if err != nil {

@@ -74,6 +74,53 @@ func CreateConversation(ctx context.Context, req *im.CreateConversationRequest) 
 	//(幂等创建Identity->写redis->)创建/更新core->写redis->发送命令消息，单聊更新setting，群聊添加成员、审核开关
 }
 
+func GetConversationInfo(ctx context.Context, req *im.GetConversationInfoRequest) (resp *im.GetConversationInfoResponse, err error) {
+	resp = &im.GetConversationInfoResponse{
+		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
+	}
+	core, err := GetConversationCores(ctx, []int64{req.GetConShortId()}, true)
+	if len(core) == 0 || core[0] == nil || core[0].GetStatus() != 0 {
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "会话不存在"}
+		return resp, nil
+	}
+	if err != nil {
+		logrus.Errorf("[GetConversationInfo] GetConversationCores err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, nil
+	}
+	setting, err := GetConversationSettings(ctx, req.GetUserId(), []int64{req.GetConShortId()})
+	if err != nil {
+		logrus.Errorf("[GetConversationInfo] GetConversationSettings err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, nil
+	}
+	userIds, err := GetConversationMemberIds(ctx, req.GetConShortId())
+	if err != nil {
+		logrus.Errorf("[GetConversationInfo] GetConversationMemberIds err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, nil
+	}
+	userInfos, err := GetConversationMemberInfos(ctx, req.GetConShortId(), userIds)
+	if err != nil {
+		logrus.Errorf("[GetConversationInfo] GetConversationMemberInfos err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, nil
+	}
+	conInfo := &im.ConversationInfo{
+		ConShortId:     req.GetConShortId(),
+		ConId:          core[0].GetConId(),
+		ConType:        core[0].GetConType(),
+		UserConIndex:   0,
+		BadgeCount:     0,
+		IsMember:       true,
+		Members:        userInfos,
+		ConCoreInfo:    core[0],
+		ConSettingInfo: setting[0],
+	}
+	resp.ConInfo = conInfo
+	return resp, nil
+}
+
 func GetConversationCores(ctx context.Context, conShortIds []int64, needUserCount bool) ([]*im.ConversationCoreInfo, error) {
 	coreInfos := make([]*im.ConversationCoreInfo, 0)
 	if len(conShortIds) == 0 {
@@ -289,9 +336,8 @@ func MarkRead(ctx context.Context, req *im.MarkReadRequest) (resp *im.MarkReadRe
 		return resp, nil
 	}
 	cmdMessage := map[string]interface{}{
-		"cmd_type":       im.CommandType_MarkRead,
-		"read_badge":     req.GetReadBadgeCount(),
-		"read_index_end": req.GetReadConIndex(),
+		"read_index_end":   req.GetReadConIndex(),
+		"read_badge_count": req.GetReadBadgeCount(),
 	}
 	cmdMessageByte, _ := json.Marshal(cmdMessage)
 	sendMessageRequest := &im.SendMessageRequest{
@@ -299,7 +345,7 @@ func MarkRead(ctx context.Context, req *im.MarkReadRequest) (resp *im.MarkReadRe
 		ConShortId: req.GetConShortId(),
 		ConId:      cores[0].GetConId(),
 		ConType:    cores[0].GetConType(),
-		MsgType:    int32(im.MessageType_Command),
+		MsgType:    int32(im.MessageType_MarkRead),
 		MsgContent: string(cmdMessageByte),
 	}
 	_, err = SendMessage(ctx, sendMessageRequest)

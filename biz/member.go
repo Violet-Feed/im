@@ -111,10 +111,6 @@ func GetConversationMemberIds(ctx context.Context, conShortId int64) ([]int64, e
 	return userIds, nil
 }
 
-func GetConversationMembers(ctx context.Context, conShortId int64, cursor int64, limit int64) ([]*im.ConversationUserInfo, int64, error) {
-	return nil, 0, nil
-}
-
 func GetConversationMemberInfos(ctx context.Context, conShortId int64, userIds []int64) ([]*im.ConversationUserInfo, error) {
 	userMap, err := model.GetUserInfos(ctx, conShortId, userIds, true)
 	if err != nil {
@@ -174,4 +170,24 @@ func IsSingleMember(ctx context.Context, conId string, userId int64) int32 {
 		return 1
 	}
 	return 0
+}
+
+func GetMembersReadIndex(ctx context.Context, req *im.GetMembersReadIndexRequest) (resp *im.GetMembersReadIndexResponse, err error) {
+	resp = &im.GetMembersReadIndexResponse{
+		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
+	}
+	userIds, err := GetConversationMemberIds(ctx, req.GetConShortId())
+	if err != nil {
+		logrus.Errorf("[GetMembersReadIndex] GetConversationMemberIds err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, nil
+	}
+	readIndexes, err := model.GetMemberReadIndexEnd(ctx, req.GetConShortId(), userIds)
+	if err != nil {
+		logrus.Errorf("[GetMembersReadIndex] GetMemberReadIndexEnd err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, nil
+	}
+	resp.ReadIndex = readIndexes
+	return resp, nil
 }

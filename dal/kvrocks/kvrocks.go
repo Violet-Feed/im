@@ -22,7 +22,7 @@ type KvrocksService interface {
 	ZAdd(ctx context.Context, key string, members []redis.Z) (int64, error)
 	ZRangeWithScores(ctx context.Context, key string, start, stop int64) ([]redis.Z, error)
 	ZRemRangeByRank(ctx context.Context, key string, start, stop int64) (int64, error)
-	ZRevRangByScoreWithScores(ctx context.Context, key string, opt *redis.ZRangeBy) ([]redis.Z, error)
+	ZRangByScoreWithScores(ctx context.Context, key string, opt *redis.ZRangeBy) ([]redis.Z, error)
 	Expire(ctx context.Context, key string, expiration time.Duration) error
 }
 
@@ -185,10 +185,10 @@ func (k *KvrocksServiceImpl) ZRemRangeByRank(ctx context.Context, key string, st
 	return res, err
 }
 
-func (k *KvrocksServiceImpl) ZRevRangByScoreWithScores(ctx context.Context, key string, opt *redis.ZRangeBy) ([]redis.Z, error) {
-	res, err := k.client.ZRevRangeByScoreWithScores(ctx, key, opt).Result()
+func (k *KvrocksServiceImpl) ZRangByScoreWithScores(ctx context.Context, key string, opt *redis.ZRangeBy) ([]redis.Z, error) {
+	res, err := k.client.ZRangeByScoreWithScores(ctx, key, opt).Result()
 	if err != nil {
-		logrus.Errorf("kvrocks zrevrangbyscorewithscores err. err = %v", err)
+		logrus.Errorf("kvrocks zrangbyscorewithscores err. err = %v", err)
 		return nil, err
 	}
 	return res, nil
