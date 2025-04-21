@@ -45,6 +45,7 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	for _, receiver := range receivers {
 		err := mq.SendToMq(ctx, "user", strconv.FormatInt(receiver, 10), messageEvent)
 		if err != nil {
+			logrus.Errorf("[ConvProcess] SendToMq err. err = %v", err)
 		}
 	}
 	return consumer.ConsumeSuccess, nil
@@ -69,6 +70,10 @@ func getReceivers(ctx context.Context, event *im.MessageEvent) ([]int64, error) 
 			return nil, err
 		}
 		return receivers, nil
+	case int32(im.ConversationType_AI_Chat):
+		parts := strings.Split(event.GetMsgBody().GetConId(), ":")
+		userId, _ := strconv.ParseInt(parts[1], 10, 64)
+		return []int64{userId}, nil
 	default:
 		return nil, errors.New("conversation type invalid")
 	}

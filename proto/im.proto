@@ -137,15 +137,15 @@ message GetMessageByUserResponse{
 }
 
 message GetCommandByUserRequest{
-  int64 user_id=1;
-  int64 user_cmd_index=2;
-  int64 limit=3;
+  int64 user_id = 1;
+  int64 user_cmd_index = 2;
+  int64 limit = 3;
 }
 message GetCommandByUserResponse{
-  repeated MessageBody msg_bodies=1;
-  int64 user_cmd_index=2;
-  bool has_more=3;
-  common.BaseResp baseResp=255;
+  repeated MessageBody msg_bodies = 1;
+  int64 user_cmd_index = 2;
+  bool has_more = 3;
+  common.BaseResp baseResp = 255;
 }
 
 message GetMessageByConversationRequest{
@@ -181,7 +181,7 @@ message CreateConversationRequest{
   string extra = 9;
 }
 message CreateConversationResponse{
-  ConversationCoreInfo con_info = 1;
+  ConversationCoreInfo con_core_info = 1;
   common.BaseResp baseResp = 255;
 }
 
@@ -210,6 +210,17 @@ message GetMembersReadIndexRequest{
 message GetMembersReadIndexResponse{
   map<int64, int64> read_index = 1;
   common.BaseResp baseResp = 255;
+}
+
+message RagModelMessage{
+  string content = 1;
+  string role = 2;
+}
+message RagModelRequest{
+  string query = 1;
+  string conversation_id = 2;
+  repeated RagModelMessage history = 3;
+  string source = 4;
 }
 
 service IMService{

@@ -21,7 +21,7 @@ func CreateConversation(ctx context.Context, req *im.CreateConversationRequest) 
 		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
 	}
 	conShortId := util.ConIdGenerator.Generate().Int64()
-	if req.GetConType() == int32(im.ConversationType_One_Chat) {
+	if req.GetConType() == int32(im.ConversationType_One_Chat) || req.GetConType() == int32(im.ConversationType_AI_Chat) {
 		//对conId幂等，目前直接查询，考虑创建Identity
 		core, err := model.GetCoreInfoByConId(ctx, req.GetConId())
 		if err != nil {
@@ -30,9 +30,12 @@ func CreateConversation(ctx context.Context, req *im.CreateConversationRequest) 
 			return resp, err
 		}
 		if core != nil {
-			resp.ConInfo = model.PackCoreInfo(core)
+			resp.ConCoreInfo = model.PackCoreInfo(core)
 			return resp, nil
 		}
+	}
+	if req.GetConType() == int32(im.ConversationType_Group_Chat) {
+		req.ConId = strconv.FormatInt(conShortId, 10)
 	}
 	coreModel := model.PackCoreModel(conShortId, req)
 	//创建core
@@ -42,9 +45,12 @@ func CreateConversation(ctx context.Context, req *im.CreateConversationRequest) 
 		resp.BaseResp.StatusCode = common.StatusCode_Server_Error
 		return resp, err
 	}
-	if req.GetConType() == int32(im.ConversationType_One_Chat) {
+	if req.GetConType() == int32(im.ConversationType_One_Chat) || req.GetConType() == int32(im.ConversationType_AI_Chat) {
 		//创建setting
 		for _, member := range req.GetMembers() {
+			if member == int64(common.SpecialUser_AI) {
+				continue
+			}
 			settingModel := model.PackSettingModel(member, conShortId, req)
 			err := model.InsertSettingInfo(ctx, settingModel)
 			if err != nil {
@@ -69,7 +75,8 @@ func CreateConversation(ctx context.Context, req *im.CreateConversationRequest) 
 		//暂时不发命令消息
 	}
 	coreInfo := model.PackCoreInfo(coreModel)
-	resp.ConInfo = coreInfo
+	coreInfo.MemberCount = int32(len(req.GetMembers()))
+	resp.ConCoreInfo = coreInfo
 	return resp, nil
 	//(幂等创建Identity->写redis->)创建/更新core->写redis->发送命令消息，单聊更新setting，群聊添加成员、审核开关
 }

@@ -51,7 +51,6 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 					return mq.SendToRetry(ctx, "user", messageEvent)
 				}
 				messageEvent.BadgeCount = badgeCount[0]
-				logrus.Info(badgeCount)
 			}
 		}
 		normalPacket := &push.NormalPacket{
@@ -85,7 +84,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			logrus.Errorf("[UserProcess] Push err. err = %v", err)
 		}
 		return err
-	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 10))
+	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3))
 	if err != nil {
 		logrus.Errorf("[UserProcess] Push all err. err = %v", err)
 		return mq.SendToRetry(ctx, "user", messageEvent)

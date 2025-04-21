@@ -1,17 +1,23 @@
 package biz
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/option"
 	"github.com/sirupsen/logrus"
 	"im/dal"
 	"im/dal/mq"
 	"im/proto_gen/common"
 	"im/proto_gen/im"
 	"im/util"
+	"io"
 	"math"
+	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -50,7 +56,7 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 	messageId := util.MsgIdGenerator.Generate().Int64()
 	//是否群成员
 	var isMember int32
-	if req.GetConType() == int32(im.ConversationType_One_Chat) {
+	if req.GetConType() == int32(im.ConversationType_One_Chat) || req.GetConType() == int32(im.ConversationType_AI_Chat) {
 		isMember = IsSingleMember(ctx, req.GetConId(), req.GetUserId())
 	} else if req.GetConType() == int32(im.ConversationType_Group_Chat) {
 		status, err := IsGroupsMember(ctx, []int64{req.GetConShortId()}, req.GetUserId())
@@ -65,7 +71,7 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "非会话成员"}
 		return resp, errors.New("not conversation member")
 	}
-	if req.GetConType() == int32(im.ConversationType_One_Chat) && req.GetConShortId() == 0 { //创建会话
+	if req.GetConShortId() == 0 && (req.GetConType() == int32(im.ConversationType_One_Chat) || req.GetConType() == int32(im.ConversationType_AI_Chat)) { //创建会话
 		parts := strings.Split(req.GetConId(), ":")
 		minId, _ := strconv.ParseInt(parts[0], 10, 64)
 		maxId, _ := strconv.ParseInt(parts[1], 10, 64)
@@ -80,7 +86,7 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 			resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 			return resp, err
 		}
-		req.ConShortId = createConversationResponse.ConInfo.ConShortId
+		req.ConShortId = createConversationResponse.GetConCoreInfo().GetConShortId()
 	}
 	//TODO：消息频率控制
 	createTime := time.Now().Unix()
@@ -95,6 +101,14 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 		MsgContent:  req.GetMsgContent(),
 		CreateTime:  createTime,
 		Extra:       "",
+	}
+	if req.GetConType() == int32(im.ConversationType_AI_Chat) && req.GetUserId() != int64(common.SpecialUser_AI) || req.GetConType() == 1 {
+		err := CallModel(ctx, messageBody)
+		if err != nil {
+			logrus.Errorf("[SendMessage] CallModel err. err = %v", err)
+			resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
+			return resp, err
+		}
 	}
 	messageEvent := &im.MessageEvent{
 		MsgBody: messageBody,
@@ -257,7 +271,7 @@ func GetMessageByUser(ctx context.Context, req *im.GetMessageByUserRequest) (res
 			groupIds := make([]int64, 0)
 			for _, conShortId := range conShortIds {
 				core := coresMap[conShortId]
-				if core.GetConType() == int32(im.ConversationType_One_Chat) {
+				if core.GetConType() == int32(im.ConversationType_One_Chat) || core.GetConType() == int32(im.ConversationType_AI_Chat) {
 					statusMap[conShortId] = IsSingleMember(ctx, core.GetConId(), req.GetUserId())
 				} else if core.GetConType() == int32(im.ConversationType_Group_Chat) {
 					groupIds = append(groupIds, conShortId)
@@ -354,11 +368,14 @@ func GetCommandByUser(ctx context.Context, req *im.GetCommandByUserRequest) (res
 	resp = &im.GetCommandByUserResponse{
 		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
 	}
-	limit := req.GetLimit()
+	userCmdIndex, limit := req.GetUserCmdIndex(), req.GetLimit()
 	if limit > CmdLimit {
 		limit = CmdLimit
 	}
-	msgIds, userCmdIndexes, err := PullUserCmdIndex(ctx, req.GetUserId(), req.GetUserCmdIndex(), limit+1)
+	if userCmdIndex == 0 {
+		userCmdIndex = 1
+	}
+	msgIds, userCmdIndexes, err := PullUserCmdIndex(ctx, req.GetUserId(), userCmdIndex, limit+1)
 	if err != nil {
 		logrus.Errorf("[GetCommandByUser] PullUserCmdIndex err. err = %v", err)
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
@@ -402,7 +419,7 @@ func GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversat
 	}
 	//是否群成员
 	var isMember int32
-	if cores[0].GetConType() == int32(im.ConversationType_One_Chat) {
+	if cores[0].GetConType() == int32(im.ConversationType_One_Chat) || cores[0].GetConType() == int32(im.ConversationType_AI_Chat) {
 		isMember = IsSingleMember(ctx, cores[0].GetConId(), req.GetUserId())
 	} else if cores[0].GetConType() == int32(im.ConversationType_Group_Chat) {
 		status, err := IsGroupsMember(ctx, []int64{req.GetConShortId()}, req.GetUserId())
@@ -436,4 +453,129 @@ func GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversat
 	resp.MsgBodies = msgBodies
 	return resp, nil
 	//获取core信息(mysql)->获取成员数量(redis+mysql)->判断是否为成员(redis,mysql)->拉取会话链(loadmore)->隐藏撤回消息
+}
+
+func CallModel(ctx context.Context, message *im.MessageBody) (err error) {
+	msgIds, _, err := PullConversationIndex(ctx, message.GetConShortId(), math.MaxInt64, 10)
+	if err != nil {
+		logrus.Errorf("[CallModel] PullConversationIndex err. err = %v", err)
+		return err
+	}
+	go func() {
+		msgBodies, err := GetMessages(ctx, message.GetConShortId(), msgIds)
+		if err != nil {
+			logrus.Errorf("[CallModel] GetMessages err. err = %v", err)
+			return
+		}
+		model := "qwen"
+		var content string
+		if model == "qwen" {
+			content, err = CallQwenModel(ctx, message, msgBodies)
+			if err != nil {
+				logrus.Errorf("[CallModel] CallQwenModel err. err = %v", err)
+				return
+			}
+		} else {
+			content, err = CallRagModel(ctx, message, msgBodies)
+			if err != nil {
+				logrus.Errorf("[CallModel] CallRagModel err. err = %v", err)
+				return
+			}
+		}
+		logrus.Infof("[CallModel] call model success. model = %v, content = %v", model, content)
+		return
+		_, err = SendMessage(ctx, &im.SendMessageRequest{
+			UserId:     int64(common.SpecialUser_AI),
+			ConShortId: message.GetConShortId(),
+			ConId:      message.GetConId(),
+			ConType:    message.GetConType(),
+			MsgType:    int32(im.MessageType_Text),
+			MsgContent: content,
+		})
+		if err != nil {
+			logrus.Errorf("[CallModel] SendMessage err. err = %v", err)
+			return
+		}
+	}()
+	return nil
+}
+
+func CallQwenModel(ctx context.Context, message *im.MessageBody, messages []*im.MessageBody) (content string, err error) {
+	msgParams := make([]openai.ChatCompletionMessageParamUnion, 0)
+	msgParams = append(msgParams, openai.UserMessage(message.GetMsgContent()))
+	for _, msgBody := range messages {
+		if msgBody.GetUserId() == int64(common.SpecialUser_AI) {
+			msgParams = append(msgParams, openai.AssistantMessage(msgBody.GetMsgContent()))
+		} else {
+			msgParams = append(msgParams, openai.UserMessage(msgBody.GetMsgContent()))
+		}
+	}
+	client := openai.NewClient(
+		option.WithAPIKey(os.Getenv("DASHSCOPE_API_KEY")),
+		option.WithBaseURL("https://dashscope.aliyuncs.com/compatible-mode/v1/"),
+	)
+	chatCompletion, err := client.Chat.Completions.New(
+		context.TODO(), openai.ChatCompletionNewParams{
+			Messages: openai.F(msgParams),
+			Model:    openai.F("qwen2.5-1.5b-instruct"),
+		},
+	)
+	if err != nil {
+		logrus.Errorf("[CallQwenModel] call model err. err = %v", err)
+		return "", err
+	}
+	return chatCompletion.Choices[0].Message.Content, nil
+}
+
+func CallRagModel(ctx context.Context, message *im.MessageBody, messages []*im.MessageBody) (content string, err error) {
+	url := "http://115.190.94.13:8000/query"
+	history := make([]*im.RagModelMessage, 0)
+	for _, msgBody := range messages {
+		if msgBody.GetUserId() == int64(common.SpecialUser_AI) {
+			history = append(history, &im.RagModelMessage{
+				Content: msgBody.MsgContent,
+				Role:    "assistant",
+			})
+		} else {
+			history = append(history, &im.RagModelMessage{
+				Content: msgBody.MsgContent,
+				Role:    "user",
+			})
+		}
+	}
+	reqBody, _ := json.Marshal(&im.RagModelRequest{
+		Query:          message.MsgContent,
+		ConversationId: strconv.FormatInt(message.GetConShortId(), 10),
+		History:        history,
+		Source:         "violet",
+	})
+	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(string(reqBody)))
+	if err != nil {
+		logrus.Errorf("[CallRagModel] http.NewRequest err. err = %v", err)
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		logrus.Errorf("[CallRagModel] http client do err. err = %v", err)
+		return "", err
+	}
+	defer resp.Body.Close()
+	var respBody bytes.Buffer
+	buffer := make([]byte, 1024)
+	for {
+		n, err := resp.Body.Read(buffer)
+		if n > 0 {
+			respBody.Write(buffer[:n])
+		}
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			logrus.Errorf("[CallRagModel] resp body read err. err = %v", err)
+			return "", err
+		}
+	}
+	return respBody.String(), nil
 }

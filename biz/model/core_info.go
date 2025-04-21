@@ -7,7 +7,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"im/dal"
 	"im/proto_gen/im"
-	"strconv"
 	"time"
 )
 
@@ -125,9 +124,6 @@ func PackCoreModel(conShortId int64, req *im.CreateConversationRequest) *Convers
 		Notice:      req.GetNotice(),
 		OwnerId:     req.GetOwnerId(),
 		Extra:       req.GetExtra(),
-	}
-	if req.GetConType() == int32(im.ConversationType_Group_Chat) {
-		core.ConId = strconv.FormatInt(conShortId, 10)
 	}
 	//TODO:获取req里的time？
 	curTime := time.Now()
