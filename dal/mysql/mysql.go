@@ -7,7 +7,7 @@ import (
 )
 
 func NewMysqlDB() *gorm.DB {
-	db, err := gorm.Open("mysql", "root:@tcp(127.0.0.1:3306)/violet?charset=utf8&parseTime=True&loc=Local")
+	db, err := gorm.Open("mysql", "root:root@tcp(127.0.0.1:3306)/violet?charset=utf8&parseTime=True&loc=Local")
 	if err != nil {
 		logrus.Fatalf("[NewMysqlDB] mysql connect err. err = %v", err)
 	}

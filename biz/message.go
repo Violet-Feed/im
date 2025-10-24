@@ -9,6 +9,7 @@ import (
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/sirupsen/logrus"
+	"im/biz/constant"
 	"im/dal"
 	"im/dal/mq"
 	"im/proto_gen/common"
@@ -102,7 +103,7 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 		CreateTime:  createTime,
 		Extra:       "",
 	}
-	if req.GetConType() == int32(im.ConversationType_AI_Chat) && req.GetUserId() != int64(common.SpecialUser_AI) || req.GetConType() == 1 {
+	if req.GetConType() == int32(im.ConversationType_AI_Chat) && req.GetUserId() != int64(common.SpecialUser_AI) {
 		err := CallModel(ctx, messageBody)
 		if err != nil {
 			logrus.Errorf("[SendMessage] CallModel err. err = %v", err)
@@ -113,7 +114,7 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 	messageEvent := &im.MessageEvent{
 		MsgBody: messageBody,
 	}
-	err = mq.SendToMq(ctx, "conversation", strconv.FormatInt(req.GetConShortId(), 10), messageEvent)
+	err = mq.SendToMq(ctx, constant.IM_CONV_TOPIC, strconv.FormatInt(req.GetConShortId(), 10), messageEvent)
 	if err != nil {
 		logrus.Errorf("[SendMessage] SendToMq err. err = %v", err)
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}

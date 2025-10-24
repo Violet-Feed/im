@@ -69,7 +69,7 @@ func GetUserCount(ctx context.Context, conShortId int64) (int, error) {
 	}
 	var users []*ConversationUserInfo
 	//err = dal.MysqlDB.Select("user_id", "create_time").Where("con_short_id=?", conShortId).Find(&users).Error
-	err = dal.MysqlDB.Where("con_short_id=?", conShortId).Find(&users).Error
+	err = dal.MysqlDB.Select([]string{"user_id", "create_time"}).Where("con_short_id=?", conShortId).Find(&users).Error
 	if err != nil {
 		logrus.Errorf("[GetUserCount] mysql get user count err. err = %v", err)
 		return 0, err
@@ -159,13 +159,13 @@ func GetUserIdList(ctx context.Context, conShortId int64) ([]int64, error) {
 		userIds = []int64{}
 	}
 	var users []*ConversationUserInfo
-	err = dal.MysqlDB.Select("user_id", "create_time").Where("con_short_id=?", conShortId).Find(&users).Error
+	err = dal.MysqlDB.Select([]string{"user_id", "create_time"}).Where("con_short_id=?", conShortId).Find(&users).Error
 	if err != nil {
 		logrus.Errorf("[GetUserIdList] mysql get user list err. err = %v", err)
 		return nil, err
 	}
 	for _, user := range users {
-		userIds = append(userIds, user.Id)
+		userIds = append(userIds, user.UserId)
 	}
 	if len(res) == 0 {
 		go AsyncSetUserZSetCache(ctx, key, users)

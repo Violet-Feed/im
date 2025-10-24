@@ -8,6 +8,7 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/sirupsen/logrus"
 	"im/biz"
+	"im/biz/constant"
 	"im/dal/mq"
 	"im/proto_gen/im"
 	"strconv"
@@ -23,7 +24,7 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		err := biz.StoreMessage(ctx, messageEvent.GetMsgBody())
 		if err != nil {
 			logrus.Errorf("[ConvProcess] StoreMessage err. err = %v", err)
-			return mq.SendToRetry(ctx, "conversation", messageEvent)
+			return mq.SendToRetry(ctx, constant.IM_CONV_TOPIC, messageEvent)
 		}
 		messageEvent.Stored = true
 	}
@@ -32,7 +33,7 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		conIndex, err := biz.AppendConversationIndex(ctx, messageEvent.GetMsgBody().GetConShortId(), messageEvent.GetMsgBody().GetMsgId())
 		if err != nil {
 			logrus.Errorf("[ConvProcess] AppendConversationIndex err. err = %v", err)
-			return mq.SendToRetry(ctx, "conversation", messageEvent)
+			return mq.SendToRetry(ctx, constant.IM_CONV_TOPIC, messageEvent)
 		}
 		messageEvent.ConIndex = conIndex
 		messageEvent.MsgBody.ConIndex = conIndex
@@ -40,10 +41,10 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	//获取成员分发用户topic
 	receivers, err := getReceivers(ctx, messageEvent)
 	if err != nil {
-		return mq.SendToRetry(ctx, "conversation", messageEvent)
+		return mq.SendToRetry(ctx, constant.IM_CONV_TOPIC, messageEvent)
 	}
 	for _, receiver := range receivers {
-		err := mq.SendToMq(ctx, "user", strconv.FormatInt(receiver, 10), messageEvent)
+		err := mq.SendToMq(ctx, constant.IM_USER_TOPIC, strconv.FormatInt(receiver, 10), messageEvent)
 		if err != nil {
 			logrus.Errorf("[ConvProcess] SendToMq err. err = %v", err)
 		}

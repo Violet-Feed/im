@@ -5,6 +5,7 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/rlog"
 	"github.com/sirupsen/logrus"
+	"im/biz/constant"
 )
 
 func InitConsumer() {
@@ -12,9 +13,9 @@ func InitConsumer() {
 	go func() {
 		c, _ := rocketmq.NewPushConsumer(
 			consumer.WithNameServer([]string{"127.0.0.1:9876"}),
-			consumer.WithGroupName("conversation"),
+			consumer.WithGroupName(constant.IM_CONV_COSUMER_GROUP),
 		)
-		if err := c.Subscribe("conversation", consumer.MessageSelector{}, ConvProcess); err != nil {
+		if err := c.Subscribe(constant.IM_CONV_TOPIC, consumer.MessageSelector{}, ConvProcess); err != nil {
 			logrus.Errorf("[initRocketMq] rocketmq consume conv message err. err = %v", err)
 		}
 		if err := c.Start(); err != nil {
@@ -24,9 +25,9 @@ func InitConsumer() {
 	go func() {
 		c, _ := rocketmq.NewPushConsumer(
 			consumer.WithNameServer([]string{"127.0.0.1:9876"}),
-			consumer.WithGroupName("user"),
+			consumer.WithGroupName(constant.IM_USER_COSUMER_GROUP),
 		)
-		if err := c.Subscribe("user", consumer.MessageSelector{}, UserProcess); err != nil {
+		if err := c.Subscribe(constant.IM_USER_TOPIC, consumer.MessageSelector{}, UserProcess); err != nil {
 			logrus.Errorf("[initRocketMq] rocketmq consume user message err. err = %v", err)
 		}
 		if err := c.Start(); err != nil {

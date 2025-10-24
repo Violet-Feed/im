@@ -7,6 +7,7 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/sirupsen/logrus"
 	"im/biz"
+	"im/biz/constant"
 	"im/dal"
 	"im/dal/mq"
 	"im/proto_gen/im"
@@ -30,7 +31,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			userConIndex, preUserConIndex, err := biz.AppendUserConIndex(ctx, userId, messageEvent.GetMsgBody().GetConShortId())
 			if err != nil {
 				logrus.Errorf("[UserProcess] AppendUserConIndex err. err = %v", err)
-				return mq.SendToRetry(ctx, "user", messageEvent)
+				return mq.SendToRetry(ctx, constant.IM_USER_TOPIC, messageEvent)
 			}
 			messageEvent.UserConIndex = userConIndex
 			messageEvent.PreUserConIndex = preUserConIndex
@@ -41,14 +42,14 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 				badgeCount, err := biz.IncrConversationBadge(ctx, userId, messageEvent.GetMsgBody().GetConShortId())
 				if err != nil {
 					logrus.Errorf("[UserProcess] IncrConversationBadge err. err = %v", err)
-					return mq.SendToRetry(ctx, "user", messageEvent)
+					return mq.SendToRetry(ctx, constant.IM_USER_TOPIC, messageEvent)
 				}
 				messageEvent.BadgeCount = badgeCount
 			} else {
 				badgeCount, err := biz.GetConversationBadges(ctx, userId, []int64{messageEvent.GetMsgBody().GetConShortId()})
 				if err != nil {
 					logrus.Errorf("[UserProcess] GetConversationBadges err. err = %v", err)
-					return mq.SendToRetry(ctx, "user", messageEvent)
+					return mq.SendToRetry(ctx, constant.IM_USER_TOPIC, messageEvent)
 				}
 				messageEvent.BadgeCount = badgeCount[0]
 			}
@@ -67,7 +68,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			userCmdIndex, err := biz.AppendUserCmdIndex(ctx, userId, messageEvent.GetMsgBody().GetMsgId())
 			if err != nil {
 				logrus.Errorf("[UserProcess] AppendUserCmdIndex err. err = %v", err)
-				return mq.SendToRetry(ctx, "user", messageEvent)
+				return mq.SendToRetry(ctx, constant.IM_USER_TOPIC, messageEvent)
 			}
 			messageEvent.UserCmdIndex = userCmdIndex
 		}
@@ -87,7 +88,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	}, backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3))
 	if err != nil {
 		logrus.Errorf("[UserProcess] Push all err. err = %v", err)
-		return mq.SendToRetry(ctx, "user", messageEvent)
+		return mq.SendToRetry(ctx, constant.IM_USER_TOPIC, messageEvent)
 	}
 	return consumer.ConsumeSuccess, nil
 	//消费消息->判断是否为高频用户(本地+redis,写入高频队列batch)->处理重试消息
