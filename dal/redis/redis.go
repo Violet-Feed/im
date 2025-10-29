@@ -2,6 +2,7 @@ package redis
 
 import (
 	"context"
+	"errors"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"time"
@@ -158,9 +159,19 @@ func (r *RedisServiceImpl) ZAdd(ctx context.Context, key string, values []redis.
 }
 
 func (r *RedisServiceImpl) ZScore(ctx context.Context, key string, member string) (float64, error) {
+	exists, err := r.client.Exists(ctx, key).Result()
+	if err != nil {
+		logrus.Errorf("[ZScore] check key exists err: %v", err)
+		return 0, err
+	}
+	if exists == 0 {
+		return 0, errors.New("key does not exist")
+	}
 	res, err := r.client.ZScore(ctx, key, member).Result()
 	if err != nil {
-		logrus.Errorf("[ZScore] redis zscore err. err = %v", err)
+		if !errors.Is(err, redis.Nil) {
+			logrus.Errorf("[ZScore] redis zscore err. err = %v", err)
+		}
 		return 0, err
 	}
 	return res, nil

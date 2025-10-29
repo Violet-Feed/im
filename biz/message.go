@@ -51,7 +51,7 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
 	}
 	if !checkMessageSendRequest(req) {
-		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Param_Error, StatusMessage: "参数错误"}
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Param_Error, StatusMessage: "invalid param"}
 		return resp, errors.New("param error")
 	}
 	messageId := util.MsgIdGenerator.Generate().Int64()
@@ -60,16 +60,20 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 	if req.GetConType() == int32(im.ConversationType_One_Chat) || req.GetConType() == int32(im.ConversationType_AI_Chat) {
 		isMember = IsSingleMember(ctx, req.GetConId(), req.GetUserId())
 	} else if req.GetConType() == int32(im.ConversationType_Group_Chat) {
-		status, err := IsGroupsMember(ctx, []int64{req.GetConShortId()}, req.GetUserId())
-		if err != nil {
-			logrus.Errorf("[SendMessage] IsConversationMembers err. err = %v", err)
-			resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
-			return resp, err
+		if req.GetUserId() == int64(common.SpecialUser_Conversation) {
+			isMember = 1
+		} else {
+			status, err := IsGroupsMember(ctx, []int64{req.GetConShortId()}, req.GetUserId())
+			if err != nil {
+				logrus.Errorf("[SendMessage] IsConversationMembers err. err = %v", err)
+				resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
+				return resp, err
+			}
+			isMember = status[req.GetConShortId()]
 		}
-		isMember = status[0]
 	}
 	if isMember != 1 {
-		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "非会话成员"}
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "conversation not member"}
 		return resp, errors.New("not conversation member")
 	}
 	if req.GetConShortId() == 0 && (req.GetConType() == int32(im.ConversationType_One_Chat) || req.GetConType() == int32(im.ConversationType_AI_Chat)) { //创建会话
@@ -114,6 +118,7 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 	messageEvent := &im.MessageEvent{
 		MsgBody: messageBody,
 	}
+	logrus.Infof("[SendMessage] messageEvent=%v", messageEvent)
 	err = mq.SendToMq(ctx, constant.IM_CONV_TOPIC, strconv.FormatInt(req.GetConShortId(), 10), messageEvent)
 	if err != nil {
 		logrus.Errorf("[SendMessage] SendToMq err. err = %v", err)
@@ -415,7 +420,7 @@ func GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversat
 		return resp, err
 	}
 	if len(cores) == 0 || cores[0] == nil || cores[0].GetStatus() != 0 {
-		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "会话不存在"}
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "conversation not found"}
 		return resp, errors.New("conversation not found")
 	}
 	//是否群成员
@@ -429,10 +434,10 @@ func GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversat
 			resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 			return resp, err
 		}
-		isMember = status[0]
+		isMember = status[req.GetConShortId()]
 	}
 	if isMember != 1 {
-		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "非会话成员"}
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "conversation not member"}
 		return resp, errors.New("not conversation member")
 	}
 	//拉取会话链

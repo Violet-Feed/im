@@ -33,15 +33,36 @@ func (c *ConversationUserInfo) TableName() string {
 }
 
 func InsertUserInfos(ctx context.Context, conShortId int64, users []*ConversationUserInfo) error {
-	err := dal.MysqlDB.Create(users).Error
-	if err != nil {
-		logrus.Errorf("[InsertUserInfos] mysql insert users err. err = %v", err)
+	tx := dal.MysqlDB.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			logrus.Errorf("[InsertUserInfos] panic recovered: %v", r)
+		}
+	}()
+	for i := range users {
+		if err := tx.Create(users[i]).Error; err != nil {
+			tx.Rollback()
+			logrus.Errorf("[InsertUserInfos] mysql insert user err. err = %v", err)
+			return err
+		}
+	}
+	if err := tx.Commit().Error; err != nil {
+		logrus.Errorf("[InsertUserInfos] mysql commit err. err = %v", err)
 		return err
 	}
+	//err := dal.MysqlDB.Create(users).Error
+	//if err != nil {
+	//	logrus.Errorf("[InsertUserInfos] mysql insert users err. err = %v", err)
+	//	return err
+	//}
 	var keys, values []string
 	var zSetValues []redis.Z
 	for _, user := range users {
-		key := fmt.Sprintf("member:%v:%v", conShortId, user.UserId)
+		key := fmt.Sprintf("user:%v:%v", conShortId, user.UserId)
 		valueByte, err := json.Marshal(user)
 		if err != nil {
 			logrus.Errorf("[InsertUserInfos] json marshal err. err = %v", err)
@@ -124,7 +145,6 @@ func GetUserInfos(ctx context.Context, conShortId int64, userIds []int64, useCac
 		go AsyncSetUserCache(ctx, conShortId, users)
 	}
 	return userMap, nil
-
 }
 
 func AsyncSetUserCache(ctx context.Context, conShortId int64, users []*ConversationUserInfo) {

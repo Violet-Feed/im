@@ -26,6 +26,14 @@ enum MessageType{
   UpdateMessage = 102;
 }
 
+enum ConMessageType{
+  ConMessageType_Not_Use = 0;
+  Add_Member = 1;
+  Remove_Member = 2;
+  Modify_Name = 3;
+  Modify_Description = 4;
+}
+
 message MessageEvent{
   MessageBody msg_body = 1;
   int64 con_index = 2;

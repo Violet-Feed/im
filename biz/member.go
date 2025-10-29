@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -73,25 +74,32 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 	if err != nil {
 		logrus.Errorf("[AddConversationMembers] PullConversationIndex err. err = %v", err)
 	} else {
-		err = model.SetReadIndexStart(ctx, conShortId, req.GetMembers(), conIndex[0])
+		minIndex := int64(0)
+		if len(conIndex) > 0 {
+			minIndex = conIndex[0]
+		}
+		err = model.SetReadIndexStart(ctx, conShortId, req.GetMembers(), minIndex)
 		if err != nil {
 			logrus.Errorf("[AddConversationMembers] SetReadIndexStart err. err = %v", err)
 		}
 	}
 	//发送进群命令消息
 	conMessage := map[string]interface{}{
-		"operator":    req.GetOperator(),
-		"add_members": req.GetMembers(),
+		"type":     im.ConMessageType_Add_Member,
+		"operator": req.GetOperator(),
+		"content":  req.GetMembers(),
 	}
 	conMessageByte, _ := json.Marshal(conMessage)
 	sendMessageRequest := &im.SendMessageRequest{
-		UserId:     int64(common.SpecialUser_Conversation),
-		ConShortId: req.GetConShortId(),
-		ConId:      req.GetConId(),
-		ConType:    int32(im.ConversationType_Group_Chat),
-		MsgType:    int32(im.MessageType_Conversation),
-		MsgContent: string(conMessageByte),
+		UserId:      int64(common.SpecialUser_Conversation),
+		ConShortId:  req.GetConShortId(),
+		ConId:       req.GetConId(),
+		ConType:     int32(im.ConversationType_Group_Chat),
+		MsgType:     int32(im.MessageType_Conversation),
+		MsgContent:  string(conMessageByte),
+		ClientMsgId: -1,
 	}
+	logrus.Infof("[AddConversationMembers] sendMessageRequest = %v", sendMessageRequest)
 	_, err = SendMessage(ctx, sendMessageRequest)
 	if err != nil {
 		logrus.Errorf("[AddConversationMembers] SendMessage err. err = %v", err)
@@ -127,15 +135,18 @@ func GetConversationMemberInfos(ctx context.Context, conShortId int64, userIds [
 func IsGroupsMember(ctx context.Context, conShortIds []int64, userId int64) (map[int64]int32, error) {
 	wg := sync.WaitGroup{}
 	statusChan := make([]chan int32, len(conShortIds))
+	for i := range statusChan {
+		statusChan[i] = make(chan int32, 1)
+	}
 	for i, conShortId := range conShortIds {
 		wg.Add(1)
 		go func(i int, conShortId int64) {
 			defer wg.Done()
-			_, err := dal.RedisServer.ZScore(ctx, "members:"+strconv.FormatInt(conShortId, 10), strconv.FormatInt(userId, 10))
+			_, err := dal.RedisServer.ZScore(ctx, "member:"+strconv.FormatInt(conShortId, 10), strconv.FormatInt(userId, 10))
 			if err == nil {
 				statusChan[i] <- 1
 				return
-			} else if err == redis.Nil {
+			} else if errors.Is(err, redis.Nil) {
 				statusChan[i] <- 0
 				return
 			} else {
@@ -143,6 +154,7 @@ func IsGroupsMember(ctx context.Context, conShortIds []int64, userId int64) (map
 				if err != nil {
 					logrus.Errorf("[IsMembers] GetUserInfos err. err = %v", err)
 					statusChan[i] <- -1
+					return
 				}
 				if len(userInfo) > 0 {
 					statusChan[i] <- 1
