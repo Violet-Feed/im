@@ -118,7 +118,6 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 	messageEvent := &im.MessageEvent{
 		MsgBody: messageBody,
 	}
-	logrus.Infof("[SendMessage] messageEvent=%v", messageEvent)
 	err = mq.SendToMq(ctx, constant.IM_CONV_TOPIC, strconv.FormatInt(req.GetConShortId(), 10), messageEvent)
 	if err != nil {
 		logrus.Errorf("[SendMessage] SendToMq err. err = %v", err)
