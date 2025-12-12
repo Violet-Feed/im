@@ -54,3 +54,23 @@ func (s *IMServerImpl) GetMembersReadIndex(ctx context.Context, req *im.GetMembe
 	resp, _ := biz.GetMembersReadIndex(ctx, req)
 	return resp, nil
 }
+
+func (s *IMServerImpl) SendNotice(ctx context.Context, req *im.SendNoticeRequest) (*im.SendNoticeResponse, error) {
+	resp, _ := biz.SendNotice(ctx, req)
+	return resp, nil
+}
+
+func (s *IMServerImpl) GetNoticeList(ctx context.Context, req *im.GetNoticeListRequest) (*im.GetNoticeListResponse, error) {
+	resp, _ := biz.GetNoticeList(ctx, req)
+	return resp, nil
+}
+
+func (s *IMServerImpl) GetNoticeCount(ctx context.Context, req *im.GetNoticeCountRequest) (*im.GetNoticeCountResponse, error) {
+	resp, _ := biz.GetNoticeCount(ctx, req)
+	return resp, nil
+}
+
+func (s *IMServerImpl) MarkNoticeRead(ctx context.Context, req *im.MarkNoticeReadRequest) (*im.MarkNoticeReadResponse, error) {
+	resp, _ := biz.MarkNoticeRead(ctx, req)
+	return resp, nil
+}

@@ -2,7 +2,7 @@ syntax = "proto3";
 package push;
 option java_multiple_files = true;
 option java_package = "violet.gateway.common.proto_gen.push";
-option go_package = "/proto_gen/push";
+option go_package = "im/proto_gen/push";
 
 import "proto/common.proto";
 import "proto/im.proto";

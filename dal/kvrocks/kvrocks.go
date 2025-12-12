@@ -15,6 +15,7 @@ type KvrocksService interface {
 	MGet(ctx context.Context, keys []string) ([]string, error)
 	SetNX(ctx context.Context, key string, value string) (bool, error)
 	Cas(ctx context.Context, key string, oldValue string, newValue string) (int64, error)
+	Incr(ctx context.Context, key string) error
 	RPush(ctx context.Context, key string, values []string) (int64, error)
 	LRange(ctx context.Context, key string, start, stop int64) ([]string, error)
 	LLen(ctx context.Context, key string) (int64, error)
@@ -22,6 +23,10 @@ type KvrocksService interface {
 	ZRangeWithScores(ctx context.Context, key string, start, stop int64) ([]redis.Z, error)
 	ZRemRangeByRank(ctx context.Context, key string, start, stop int64) (int64, error)
 	ZRangByScoreWithScores(ctx context.Context, key string, opt *redis.ZRangeBy) ([]redis.Z, error)
+	ZRevRange(ctx context.Context, key string, start, stop int64) ([]string, error)
+	HGet(ctx context.Context, key string, field string) (string, error)
+	HSet(ctx context.Context, key string, field string, value string) error
+	Del(ctx context.Context, key string) error
 	Expire(ctx context.Context, key string, expiration time.Duration) error
 }
 
@@ -131,6 +136,15 @@ func (k *KvrocksServiceImpl) Cas(ctx context.Context, key string, oldValue strin
 	return res.(int64), nil
 }
 
+func (k *KvrocksServiceImpl) Incr(ctx context.Context, key string) error {
+	_, err := k.client.Incr(ctx, key).Result()
+	if err != nil {
+		logrus.Errorf("kvrocks incr err. err = %v", err)
+		return err
+	}
+	return nil
+}
+
 func (k *KvrocksServiceImpl) RPush(ctx context.Context, key string, values []string) (int64, error) {
 	res, err := k.client.RPush(ctx, key, values).Result()
 	if err != nil {
@@ -191,6 +205,42 @@ func (k *KvrocksServiceImpl) ZRangByScoreWithScores(ctx context.Context, key str
 		return nil, err
 	}
 	return res, nil
+}
+
+func (k *KvrocksServiceImpl) ZRevRange(ctx context.Context, key string, start, stop int64) ([]string, error) {
+	res, err := k.client.ZRevRange(ctx, key, start, stop).Result()
+	if err != nil {
+		logrus.Errorf("kvrocks zrevrange err. err = %v", err)
+		return nil, err
+	}
+	return res, nil
+}
+
+func (k *KvrocksServiceImpl) HGet(ctx context.Context, key string, field string) (string, error) {
+	res, err := k.client.HGet(ctx, key, field).Result()
+	if err != nil {
+		logrus.Errorf("kvrocks hget err. err = %v", err)
+		return "", err
+	}
+	return res, nil
+}
+
+func (k *KvrocksServiceImpl) HSet(ctx context.Context, key string, field string, value string) error {
+	_, err := k.client.HSet(ctx, key, field, value).Result()
+	if err != nil {
+		logrus.Errorf("kvrocks hset err. err = %v", err)
+		return err
+	}
+	return nil
+}
+
+func (k *KvrocksServiceImpl) Del(ctx context.Context, key string) error {
+	_, err := k.client.Del(ctx, key).Result()
+	if err != nil {
+		logrus.Errorf("kvrocks del err. err = %v", err)
+		return err
+	}
+	return nil
 }
 
 func (k *KvrocksServiceImpl) Expire(ctx context.Context, key string, expiration time.Duration) error {

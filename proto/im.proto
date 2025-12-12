@@ -2,7 +2,7 @@ syntax = "proto3";
 package im;
 option java_multiple_files = true;
 option java_package = "violet.gateway.common.proto_gen.im";
-option go_package = "/proto_gen/im";
+option go_package = "im/proto_gen/im";
 
 import "proto/common.proto";
 
@@ -244,15 +244,14 @@ enum NoticeType{
   Digg = 2;
   Comment = 3;
   Reply = 4;
-  Digg_Comment = 5;
+  DiggComment = 5;
 }
 
 message NoticeBody{
   int64 notice_id = 1;
   int32 notice_type = 2;
   string notice_content = 3;
-  int64 ref_id = 4;
-  int64 create_time = 5;
+  int64 create_time = 4;
 }
 
 message SendNoticeRequest{
@@ -260,7 +259,8 @@ message SendNoticeRequest{
   int32 group = 2;
   int32 notice_type = 3;
   string notice_content = 4;
-  int64 ref_id = 5;
+  string ref_type = 5;
+  int64 ref_id = 6;
 }
 message SendNoticeResponse{
   common.BaseResp baseResp = 255;
