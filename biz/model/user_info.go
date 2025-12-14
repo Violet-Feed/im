@@ -118,7 +118,7 @@ func GetUserInfos(ctx context.Context, conShortId int64, userIds []int64, useCac
 			for i, result := range results {
 				if result != "" {
 					var user *ConversationUserInfo
-					if err := json.Unmarshal([]byte(result), &user); err != nil {
+					if err := json.Unmarshal([]byte(result), &user); err == nil {
 						userMap[user.UserId] = user
 						continue
 					}

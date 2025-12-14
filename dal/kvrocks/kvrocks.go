@@ -19,6 +19,7 @@ type KvrocksService interface {
 	RPush(ctx context.Context, key string, values []string) (int64, error)
 	LRange(ctx context.Context, key string, start, stop int64) ([]string, error)
 	LLen(ctx context.Context, key string) (int64, error)
+	BatchLLen(ctx context.Context, keys []string) ([]int64, error)
 	ZAdd(ctx context.Context, key string, members []redis.Z) (int64, error)
 	ZRangeWithScores(ctx context.Context, key string, start, stop int64) ([]redis.Z, error)
 	ZRemRangeByRank(ctx context.Context, key string, start, stop int64) (int64, error)
@@ -172,6 +173,32 @@ func (k *KvrocksServiceImpl) LLen(ctx context.Context, key string) (int64, error
 	return res, nil
 }
 
+func (k *KvrocksServiceImpl) BatchLLen(ctx context.Context, keys []string) ([]int64, error) {
+	pipe := k.client.Pipeline()
+	cmds := make([]*redis.IntCmd, 0, len(keys))
+	for _, key := range keys {
+		cmd := pipe.LLen(ctx, key)
+		cmds = append(cmds, cmd)
+	}
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		logrus.Errorf("kvrocks batch llen err. err = %v", err)
+		return nil, err
+	}
+	lens := make([]int64, len(keys))
+	for i, cmd := range cmds {
+		lenVal, err := cmd.Result()
+		if errors.Is(err, redis.Nil) {
+			lenVal = 0
+		} else if err != nil {
+			logrus.Warnf("kvrocks llen err. err = %v", err)
+			lenVal = 0
+		}
+		lens[i] = lenVal
+	}
+	return lens, nil
+}
+
 func (k *KvrocksServiceImpl) ZAdd(ctx context.Context, key string, members []redis.Z) (int64, error) {
 	res, err := k.client.ZAdd(ctx, key, members...).Result()
 	if err != nil {
@@ -218,6 +245,9 @@ func (k *KvrocksServiceImpl) ZRevRange(ctx context.Context, key string, start, s
 
 func (k *KvrocksServiceImpl) HGet(ctx context.Context, key string, field string) (string, error) {
 	res, err := k.client.HGet(ctx, key, field).Result()
+	if errors.Is(err, redis.Nil) {
+		return "", err
+	}
 	if err != nil {
 		logrus.Errorf("kvrocks hget err. err = %v", err)
 		return "", err

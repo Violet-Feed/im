@@ -13,6 +13,8 @@ enum PacketType{
   Heartbeat = 2;
   Normal = 3;
   Command = 4;
+  Material = 5;
+  Notice = 6;
 }
 
 message ConnectPacket{
@@ -28,12 +30,27 @@ message CommandPacket{
   int64 user_cmd_index = 1;
   im.MessageBody msg_body = 2;
 }
+message MaterialPacket{
+  int64 material_id = 1;
+  int32 material_type = 2;
+  string material_url = 3;
+  string cover_url = 4;
+  int64 create_time = 5;
+  int32 status = 6;
+}
+message NoticePacket{
+  int32 group = 1;
+  bool new_notice = 2;
+  im.NoticeBody notice_body = 3;
+}
 
 message PushRequest{
   PacketType packet_type = 1;
   int64 user_id = 2;
   NormalPacket normal_packet = 3;
   CommandPacket command_packet = 4;
+  MaterialPacket material_packet = 5;
+  NoticePacket notice_packet = 6;
 }
 message PushResponse{
   common.BaseResp baseResp = 255;

@@ -7,77 +7,84 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"im/dal"
+	"im/proto_gen/action"
 	"im/proto_gen/common"
 	"im/proto_gen/im"
+	"im/proto_gen/push"
 	"im/util"
 	"strconv"
 	"time"
 )
 
 func SendNotice(ctx context.Context, req *im.SendNoticeRequest) (resp *im.SendNoticeResponse, err error) {
+	//按理应该用mq等方式保证数据一致性
 	resp = &im.SendNoticeResponse{
 		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
 	}
-	noticeId := util.NoticeIdGenerator.Generate().Int64()
 	createTime := time.Now().Unix()
-	notice := &im.NoticeBody{
-		NoticeId:      noticeId,
-		NoticeType:    req.GetNoticeType(),
-		NoticeContent: req.GetNoticeContent(),
-		CreateTime:    createTime,
+	newNotice := false
+	noticePacket := &push.NoticePacket{
+		Group: req.GetGroup(),
 	}
-	noticeJson, err := json.Marshal(notice)
-	if err != nil {
-		logrus.Errorf("[SendNotice] json marshal err: %v", err)
-		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
-		return resp, err
-	}
-	err = dal.KvrocksServer.Set(ctx, fmt.Sprintf("notice:%d", noticeId), string(noticeJson))
-	if err != nil {
-		logrus.Errorf("[SendNotice] kvrocks set err: %v", err)
-		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
-		return resp, err
-	}
-	if req.GetRefId() != 0 {
-		refKey := fmt.Sprintf("notice_ref:%d", req.GetUserId())
-		refField := fmt.Sprintf("%s:%d", req.GetRefType(), req.GetRefId())
-		res, err := dal.KvrocksServer.HGet(ctx, refKey, refField)
+	if req.GetAggField() == "" {
+		newNotice = true
+	} else {
+		aggKey := fmt.Sprintf("notice_agg:%d:%d", req.GetUserId(), req.GetGroup())
+		noticeIdStr, err := dal.KvrocksServer.HGet(ctx, aggKey, req.GetAggField())
 		if err != nil {
-			logrus.Errorf("[SendNotice] kvrocks hget err: %v", err)
-			resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
-			return resp, err
+			logrus.Warnf("[SendNotice] kvrocks hget err: %v", err)
 		}
-		if res != "" {
-			aggKey := fmt.Sprintf("notice_agg:%d", noticeId)
-			_, err := dal.KvrocksServer.RPush(ctx, aggKey, []string{res})
+		if noticeIdStr == "" {
+			newNotice = true
+		} else {
+			noticeId, _ := strconv.ParseInt(noticeIdStr, 10, 64)
+			extra := ""
+			if req.GetNoticeType() == int32(im.NoticeType_CreateComment) || req.GetNoticeType() == int32(im.NoticeType_CreateReply) {
+				var payload action.ActionPayload
+				_ = json.Unmarshal([]byte(req.GetNoticeContent()), &payload)
+				commentExtra := map[string]interface{}{
+					"comment_id":   payload.GetCommentId(),
+					"content_type": payload.GetContentType(),
+					"content":      payload.GetContent(),
+				}
+				commentExtraByte, _ := json.Marshal(commentExtra)
+				extra = string(commentExtraByte)
+			}
+			notice := &im.NoticeAggBody{
+				SenderId:   req.GetSenderId(),
+				CreateTime: createTime,
+				Extra:      extra,
+			}
+			noticeByte, _ := json.Marshal(notice)
+			aggListKey := fmt.Sprintf("notice_agg_list:%d", noticeId)
+			_, err = dal.KvrocksServer.RPush(ctx, aggListKey, []string{string(noticeByte)})
 			if err != nil {
 				logrus.Errorf("[SendNotice] kvrocks rpush err: %v", err)
 				resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 				return resp, err
 			}
-		} else {
-			err := dal.KvrocksServer.HSet(ctx, refKey, refField, strconv.FormatInt(noticeId, 10))
-			if err != nil {
-				logrus.Errorf("[SendNotice] kvrocks hset err: %v", err)
-				resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
-				return resp, err
-			}
-			key := fmt.Sprintf("notice_index:%d", req.GetUserId())
-			_, err = dal.KvrocksServer.ZAdd(ctx, key, []redis.Z{
-				{
-					Member: noticeId,
-					Score:  float64(createTime),
-				},
-			})
-			if err != nil {
-				logrus.Errorf("[SendNotice] kvrocks zadd err: %v", err)
-				resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
-				return resp, err
-			}
 		}
-	} else {
-		key := fmt.Sprintf("notice_index:%d:%d", req.GetUserId(), req.GetGroup())
-		_, err := dal.KvrocksServer.ZAdd(ctx, key, []redis.Z{
+	}
+	if newNotice {
+		noticeId := util.NoticeIdGenerator.Generate().Int64()
+		notice := &im.NoticeBody{
+			NoticeId:      noticeId,
+			NoticeType:    req.GetNoticeType(),
+			NoticeContent: req.GetNoticeContent(),
+			SenderId:      req.GetSenderId(),
+			RefId:         req.GetRefId(),
+			CreateTime:    createTime,
+		}
+		noticePacket.NoticeBody = notice
+		noticeByte, _ := json.Marshal(notice)
+		err = dal.KvrocksServer.Set(ctx, fmt.Sprintf("notice:%d", noticeId), string(noticeByte))
+		if err != nil {
+			logrus.Errorf("[SendNotice] kvrocks set err: %v", err)
+			resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
+			return resp, err
+		}
+		indexKey := fmt.Sprintf("notice_index:%d:%d", req.GetUserId(), req.GetGroup())
+		_, err = dal.KvrocksServer.ZAdd(ctx, indexKey, []redis.Z{
 			{
 				Member: noticeId,
 				Score:  float64(createTime),
@@ -88,10 +95,29 @@ func SendNotice(ctx context.Context, req *im.SendNoticeRequest) (resp *im.SendNo
 			resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 			return resp, err
 		}
+		if req.GetAggField() != "" {
+			aggKey := fmt.Sprintf("notice_agg:%d:%d", req.GetUserId(), req.GetGroup())
+			err := dal.KvrocksServer.HSet(ctx, aggKey, req.GetAggField(), strconv.FormatInt(noticeId, 10))
+			if err != nil {
+				logrus.Warnf("[SendNotice] kvrocks hset err: %v", err)
+			}
+		}
 	}
-	err = dal.KvrocksServer.Incr(ctx, fmt.Sprintf("notice_count:%d", req.GetUserId()))
+	err = dal.KvrocksServer.Incr(ctx, fmt.Sprintf("notice_count:%d:%d", req.GetUserId(), req.GetGroup()))
 	if err != nil {
 		logrus.Errorf("[SendNotice] kvrocks incr err: %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
+		return resp, err
+	}
+	noticePacket.NewNotice = newNotice
+	pushRequest := &push.PushRequest{
+		PacketType:   push.PacketType_Notice,
+		UserId:       req.GetUserId(),
+		NoticePacket: noticePacket,
+	}
+	err = dal.PushServer.Push(ctx, pushRequest)
+	if err != nil {
+		logrus.Errorf("[SendNotice] push err: %v", err)
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 		return resp, err
 	}
@@ -120,16 +146,42 @@ func GetNoticeList(ctx context.Context, req *im.GetNoticeListRequest) (resp *im.
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 		return resp, err
 	}
+	aggListKeys := make([]string, 0, len(noticeIds))
+	for _, id := range noticeIds {
+		aggListKey := fmt.Sprintf("notice_agg_list:%s", id)
+		aggListKeys = append(aggListKeys, aggListKey)
+	}
+	aggLens, err := dal.KvrocksServer.BatchLLen(ctx, aggListKeys)
+	if err != nil {
+		logrus.Errorf("[GetNoticeList] kvrocks batch llen err: %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
+		return resp, err
+	}
 	notices := make([]*im.NoticeBody, 0)
-	for _, ns := range noticeStr {
+	for i, ns := range noticeStr {
 		var notice im.NoticeBody
-		err := json.Unmarshal([]byte(ns), &notice)
-		if err != nil {
-			logrus.Errorf("[GetNoticeList] json unmarshal err: %v", err)
-			resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
-			return resp, err
+		if err := json.Unmarshal([]byte(ns), &notice); err == nil {
+			notice.AggCount = aggLens[i]
+			notices = append(notices, &notice)
 		}
-		notices = append(notices, &notice)
+	}
+	resp.Notices = notices
+	return resp, nil
+}
+
+func GetNoticeAggList(ctx context.Context, req *im.GetNoticeAggListRequest) (resp *im.GetNoticeAggListResponse, err error) {
+	resp = &im.GetNoticeAggListResponse{
+		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
+	}
+	key := fmt.Sprintf("notice_agg_list:%d", req.GetNoticeId())
+	offset := (req.GetPage() - 1) * 10
+	noticeStr, err := dal.KvrocksServer.LRange(ctx, key, offset, offset+9)
+	notices := make([]*im.NoticeAggBody, 0)
+	for _, ns := range noticeStr {
+		var notice im.NoticeAggBody
+		if err := json.Unmarshal([]byte(ns), &notice); err == nil {
+			notices = append(notices, &notice)
+		}
 	}
 	resp.Notices = notices
 	return resp, nil
@@ -167,8 +219,8 @@ func MarkNoticeRead(ctx context.Context, req *im.MarkNoticeReadRequest) (resp *i
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 		return resp, err
 	}
-	refKey := fmt.Sprintf("notice_ref:%d", req.GetUserId())
-	err = dal.KvrocksServer.Del(ctx, refKey)
+	aggKey := fmt.Sprintf("notice_agg:%d:%d", req.GetUserId(), req.GetGroup())
+	err = dal.KvrocksServer.Del(ctx, aggKey)
 	if err != nil {
 		logrus.Errorf("[MarkNoticeRead] kvrocks del err: %v", err)
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}

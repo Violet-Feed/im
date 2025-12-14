@@ -81,7 +81,7 @@ func GetSettingInfo(ctx context.Context, userId int64, conShortIds []int64) (map
 		for i, result := range results {
 			if result != "" {
 				var setting *ConversationSettingInfo
-				if err := json.Unmarshal([]byte(result), &setting); err != nil {
+				if err := json.Unmarshal([]byte(result), &setting); err == nil {
 					settingsMap[setting.ConShortId] = setting
 					continue
 				}

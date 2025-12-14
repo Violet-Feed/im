@@ -65,6 +65,11 @@ func (s *IMServerImpl) GetNoticeList(ctx context.Context, req *im.GetNoticeListR
 	return resp, nil
 }
 
+func (s *IMServerImpl) GetNoticeAggList(ctx context.Context, req *im.GetNoticeAggListRequest) (*im.GetNoticeAggListResponse, error) {
+	resp, _ := biz.GetNoticeAggList(ctx, req)
+	return resp, nil
+}
+
 func (s *IMServerImpl) GetNoticeCount(ctx context.Context, req *im.GetNoticeCountRequest) (*im.GetNoticeCountResponse, error) {
 	resp, _ := biz.GetNoticeCount(ctx, req)
 	return resp, nil

@@ -63,7 +63,7 @@ func GetCoreInfos(ctx context.Context, conShortIds []int64) (map[int64]*Conversa
 		for i, result := range results {
 			if result != "" {
 				var core *ConversationCoreInfo
-				if err := json.Unmarshal([]byte(result), &core); err != nil {
+				if err := json.Unmarshal([]byte(result), &core); err == nil {
 					coresMap[core.ConShortId] = core
 					continue
 				}
