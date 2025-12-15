@@ -120,12 +120,15 @@ func GetConversationMemberIds(ctx context.Context, conShortId int64) ([]int64, e
 }
 
 func GetConversationMemberInfos(ctx context.Context, conShortId int64, userIds []int64) ([]*im.ConversationUserInfo, error) {
+	var userInfos []*im.ConversationUserInfo
+	if len(userIds) == 0 {
+		return userInfos, nil
+	}
 	userMap, err := model.GetUserInfos(ctx, conShortId, userIds, true)
 	if err != nil {
 		logrus.Errorf("[GetConversationMemberInfos] GetUserInfos err. err = %v", err)
 		return nil, err
 	}
-	var userInfos []*im.ConversationUserInfo
 	for _, id := range userIds {
 		userInfos = append(userInfos, model.PackUserInfo(userMap[id]))
 	}

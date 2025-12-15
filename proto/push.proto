@@ -38,10 +38,16 @@ message MaterialPacket{
   int64 create_time = 5;
   int32 status = 6;
 }
+enum NoticeOpType{
+  NoticeOpType_Not_Use = 0;
+  Send = 1;
+  MarkRead = 2;
+}
 message NoticePacket{
   int32 group = 1;
-  bool new_notice = 2;
-  im.NoticeBody notice_body = 3;
+  int32 op_type = 2;
+  bool new_notice = 3;
+  im.NoticeBody notice_body = 4;
 }
 
 message PushRequest{

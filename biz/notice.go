@@ -3,11 +3,11 @@ package biz
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"im/dal"
-	"im/proto_gen/action"
 	"im/proto_gen/common"
 	"im/proto_gen/im"
 	"im/proto_gen/push"
@@ -24,36 +24,26 @@ func SendNotice(ctx context.Context, req *im.SendNoticeRequest) (resp *im.SendNo
 	createTime := time.Now().Unix()
 	newNotice := false
 	noticePacket := &push.NoticePacket{
-		Group: req.GetGroup(),
+		Group:  req.GetGroup(),
+		OpType: int32(push.NoticeOpType_Send),
 	}
 	if req.GetAggField() == "" {
 		newNotice = true
 	} else {
 		aggKey := fmt.Sprintf("notice_agg:%d:%d", req.GetUserId(), req.GetGroup())
 		noticeIdStr, err := dal.KvrocksServer.HGet(ctx, aggKey, req.GetAggField())
-		if err != nil {
+		if errors.Is(err, redis.Nil) {
+		} else if err != nil {
 			logrus.Warnf("[SendNotice] kvrocks hget err: %v", err)
 		}
 		if noticeIdStr == "" {
 			newNotice = true
 		} else {
 			noticeId, _ := strconv.ParseInt(noticeIdStr, 10, 64)
-			extra := ""
-			if req.GetNoticeType() == int32(im.NoticeType_CreateComment) || req.GetNoticeType() == int32(im.NoticeType_CreateReply) {
-				var payload action.ActionPayload
-				_ = json.Unmarshal([]byte(req.GetNoticeContent()), &payload)
-				commentExtra := map[string]interface{}{
-					"comment_id":   payload.GetCommentId(),
-					"content_type": payload.GetContentType(),
-					"content":      payload.GetContent(),
-				}
-				commentExtraByte, _ := json.Marshal(commentExtra)
-				extra = string(commentExtraByte)
-			}
 			notice := &im.NoticeAggBody{
 				SenderId:   req.GetSenderId(),
 				CreateTime: createTime,
-				Extra:      extra,
+				Extra:      "",
 			}
 			noticeByte, _ := json.Marshal(notice)
 			aggListKey := fmt.Sprintf("notice_agg_list:%d", noticeId)
@@ -136,6 +126,11 @@ func GetNoticeList(ctx context.Context, req *im.GetNoticeListRequest) (resp *im.
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 		return resp, err
 	}
+	notices := make([]*im.NoticeBody, 0)
+	if len(noticeIds) == 0 {
+		resp.Notices = notices
+		return resp, nil
+	}
 	keys := make([]string, 0)
 	for _, id := range noticeIds {
 		keys = append(keys, fmt.Sprintf("notice:%s", id))
@@ -157,7 +152,6 @@ func GetNoticeList(ctx context.Context, req *im.GetNoticeListRequest) (resp *im.
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 		return resp, err
 	}
-	notices := make([]*im.NoticeBody, 0)
 	for i, ns := range noticeStr {
 		var notice im.NoticeBody
 		if err := json.Unmarshal([]byte(ns), &notice); err == nil {
@@ -193,7 +187,8 @@ func GetNoticeCount(ctx context.Context, req *im.GetNoticeCountRequest) (resp *i
 	}
 	key := fmt.Sprintf("notice_count:%d:%d", req.GetUserId(), req.GetGroup())
 	countStr, err := dal.KvrocksServer.Get(ctx, key)
-	if err != nil {
+	if errors.Is(err, redis.Nil) {
+	} else if err != nil {
 		logrus.Errorf("[GetNoticeCount] kvrocks get err: %v", err)
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 		return resp, err
@@ -223,6 +218,21 @@ func MarkNoticeRead(ctx context.Context, req *im.MarkNoticeReadRequest) (resp *i
 	err = dal.KvrocksServer.Del(ctx, aggKey)
 	if err != nil {
 		logrus.Errorf("[MarkNoticeRead] kvrocks del err: %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
+		return resp, err
+	}
+	noticePacket := &push.NoticePacket{
+		Group:  req.GetGroup(),
+		OpType: int32(push.NoticeOpType_MarkRead),
+	}
+	pushRequest := &push.PushRequest{
+		PacketType:   push.PacketType_Notice,
+		UserId:       req.GetUserId(),
+		NoticePacket: noticePacket,
+	}
+	err = dal.PushServer.Push(ctx, pushRequest)
+	if err != nil {
+		logrus.Errorf("[MarkNoticeRead] push err: %v", err)
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 		return resp, err
 	}

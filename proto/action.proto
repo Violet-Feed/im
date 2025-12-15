@@ -91,9 +91,9 @@ message MGetFollowCountResponse{
 
 enum EntityType{
   ENTITY_TYPE_Not_Use = 0;
-  User = 1;
-  Creation = 2;
-  Comment = 3;
+  user = 1;
+  creation = 2;
+  comment = 3;
 }
 
 message DiggRequest{
