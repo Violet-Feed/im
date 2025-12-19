@@ -15,17 +15,15 @@ import (
 const UserInfoExpireTime = 24 * time.Hour
 
 type ConversationUserInfo struct {
-	Id             int64     `gorm:"column:id" json:"id"`
-	ConShortId     int64     `gorm:"column:con_short_id" json:"con_short_id"`
-	UserId         int64     `gorm:"column:user_id" json:"user_id"`
-	Privilege      int32     `gorm:"column:privilege" json:"level"`
-	NickName       string    `gorm:"column:nick_name" json:"nick_name"`
-	BlockTimeStamp int64     `gorm:"column:block_time_stamp" json:"block_time_stamp"`
-	Operator       int64     `gorm:"column:operator" json:"operator"`
-	CreateTime     time.Time `gorm:"column:create_time" json:"create_time"`
-	ModifyTime     time.Time `gorm:"column:modify_time" json:"modify_time"`
-	Status         int32     `gorm:"column:status" json:"status"`
-	Extra          string    `gorm:"column:extra" json:"extra"`
+	Id         int64     `gorm:"column:id" json:"id"`
+	ConShortId int64     `gorm:"column:con_short_id" json:"con_short_id"`
+	UserId     int64     `gorm:"column:user_id" json:"user_id"`
+	Privilege  int32     `gorm:"column:privilege" json:"level"`
+	NickName   string    `gorm:"column:nick_name" json:"nick_name"`
+	CreateTime time.Time `gorm:"column:create_time" json:"create_time"`
+	ModifyTime time.Time `gorm:"column:modify_time" json:"modify_time"`
+	Status     int32     `gorm:"column:status" json:"status"`
+	Extra      string    `gorm:"column:extra" json:"extra"`
 }
 
 func (c *ConversationUserInfo) TableName() string {
@@ -209,7 +207,6 @@ func PackUserModel(userId int64, req *im.AddConversationMembersRequest) *Convers
 		ConShortId: req.GetConShortId(),
 		UserId:     userId,
 		Privilege:  2,
-		Operator:   req.GetOperator(),
 	}
 	curTime := time.Now()
 	user.CreateTime = curTime
@@ -222,16 +219,14 @@ func PackUserInfo(model *ConversationUserInfo) *im.ConversationUserInfo {
 		return nil
 	}
 	user := &im.ConversationUserInfo{
-		ConShortId:     model.ConShortId,
-		UserId:         model.UserId,
-		Privilege:      model.Privilege,
-		NickName:       model.NickName,
-		BlockTimeStamp: model.BlockTimeStamp,
-		Operator:       model.Operator,
-		CreateTime:     model.CreateTime.Unix(),
-		ModifyTime:     model.ModifyTime.Unix(),
-		Status:         model.Status,
-		Extra:          model.Extra,
+		ConShortId: model.ConShortId,
+		UserId:     model.UserId,
+		Privilege:  model.Privilege,
+		NickName:   model.NickName,
+		CreateTime: model.CreateTime.Unix(),
+		ModifyTime: model.ModifyTime.Unix(),
+		Status:     model.Status,
+		Extra:      model.Extra,
 	}
 	return user
 }

@@ -45,6 +45,11 @@ func (s *IMServerImpl) GetConversationInfo(ctx context.Context, req *im.GetConve
 	return resp, nil
 }
 
+func (s *IMServerImpl) GetConversationMembers(ctx context.Context, req *im.GetConversationMembersRequest) (*im.GetConversationMembersResponse, error) {
+	resp, _ := biz.GetConversationMembers(ctx, req)
+	return resp, nil
+}
+
 func (s *IMServerImpl) AddConversationMembers(ctx context.Context, req *im.AddConversationMembersRequest) (*im.AddConversationMembersResponse, error) {
 	resp, _ := biz.AddConversationMembers(ctx, req)
 	return resp, nil

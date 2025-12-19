@@ -110,6 +110,26 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 	return resp, nil
 }
 
+func GetConversationMembers(ctx context.Context, req *im.GetConversationMembersRequest) (*im.GetConversationMembersResponse, error) {
+	resp := &im.GetConversationMembersResponse{
+		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
+	}
+	userIds, err := GetConversationMemberIds(ctx, req.GetConShortId())
+	if err != nil {
+		logrus.Errorf("[GetConversationMembers] GetConversationMemberIds err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, nil
+	}
+	userInfos, err := GetConversationMemberInfos(ctx, req.GetConShortId(), userIds)
+	if err != nil {
+		logrus.Errorf("[GetConversationMembers] GetConversationMemberInfos err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, nil
+	}
+	resp.Members = userInfos
+	return resp, nil
+}
+
 func GetConversationMemberIds(ctx context.Context, conShortId int64) ([]int64, error) {
 	userIds, err := model.GetUserIdList(ctx, conShortId)
 	if err != nil {

@@ -20,7 +20,6 @@ type ConversationCoreInfo struct {
 	Name        string    `gorm:"column:name" json:"name"`
 	AvatarUri   string    `gorm:"column:avatar_uri" json:"avatar_uri"`
 	Description string    `gorm:"column:description" json:"description"`
-	Notice      string    `gorm:"column:notice" json:"notice"`
 	OwnerId     int64     `gorm:"column:owner_id" json:"owner_id"`
 	CreateTime  time.Time `gorm:"column:create_time" json:"create_time"`
 	ModifyTime  time.Time `gorm:"column:modify_time" json:"modify_time"`
@@ -121,7 +120,6 @@ func PackCoreModel(conShortId int64, req *im.CreateConversationRequest) *Convers
 		Name:        req.GetName(),
 		AvatarUri:   req.GetAvatarUri(),
 		Description: req.GetDescription(),
-		Notice:      req.GetNotice(),
 		OwnerId:     req.GetOwnerId(),
 		Extra:       req.GetExtra(),
 	}
@@ -143,7 +141,6 @@ func PackCoreInfo(model *ConversationCoreInfo) *im.ConversationCoreInfo {
 		Name:        model.Name,
 		AvatarUri:   model.AvatarUri,
 		Description: model.Description,
-		Notice:      model.Notice,
 		OwnerId:     model.OwnerId,
 		CreateTime:  model.CreateTime.Unix(),
 		ModifyTime:  model.ModifyTime.Unix(),

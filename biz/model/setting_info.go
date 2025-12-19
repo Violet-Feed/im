@@ -19,7 +19,7 @@ type ConversationSettingInfo struct {
 	ConShortId     int64     `gorm:"column:con_short_id" json:"con_short_id"`
 	ConType        int32     `gorm:"column:con_type" json:"con_type"`
 	MinIndex       int64     `gorm:"column:min_index" json:"min_index"`
-	TopTimeStamp   int64     `gorm:"column:top_time_stamp" json:"top_time_stamp"`
+	TopTimestamp   int64     `gorm:"column:top_timestamp" json:"top_time_stamp"`
 	PushStatus     int32     `gorm:"column:push_status" json:"push_status"`
 	ModifyTime     time.Time `gorm:"column:modify_time" json:"modify_time"`
 	Extra          string    `gorm:"column:extra" json:"extra"`
@@ -138,7 +138,7 @@ func PackSettingInfo(model *ConversationSettingInfo) *im.ConversationSettingInfo
 		ConShortId:   model.ConShortId,
 		ConType:      model.ConType,
 		MinIndex:     model.MinIndex,
-		TopTimeStamp: model.TopTimeStamp,
+		TopTimestamp: model.TopTimestamp,
 		PushStatus:   model.PushStatus,
 		ModifyTime:   model.ModifyTime.Unix(),
 		Extra:        model.Extra,

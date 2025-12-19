@@ -293,14 +293,14 @@ func GetMessageByUser(ctx context.Context, req *im.GetMessageByUserRequest) (res
 			}
 			statusMapChan <- statusMap
 		}()
-		//TODO:获取最近member，id昵称权限block
-		go func() {
-			_, err := GetConversationMemberInfos(ctx, 0, []int64{0})
-			if err != nil {
-				logrus.Errorf("[GetMessageByUser] GetConversationMemberInfos err. err = %v", err)
-				return
-			}
-		}()
+		//获取最近member，id昵称权限block
+		//go func() {
+		//	_, err := GetConversationMemberInfos(ctx, 0, []int64{0})
+		//	if err != nil {
+		//		logrus.Errorf("[GetMessageByUser] GetConversationMemberInfos err. err = %v", err)
+		//		return
+		//	}
+		//}()
 	}()
 	//获取会话setting
 	go func() {

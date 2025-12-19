@@ -101,26 +101,26 @@ func GetConversationInfo(ctx context.Context, req *im.GetConversationInfoRequest
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
 		return resp, nil
 	}
-	userIds, err := GetConversationMemberIds(ctx, req.GetConShortId())
-	if err != nil {
-		logrus.Errorf("[GetConversationInfo] GetConversationMemberIds err. err = %v", err)
-		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
-		return resp, nil
-	}
-	userInfos, err := GetConversationMemberInfos(ctx, req.GetConShortId(), userIds)
-	if err != nil {
-		logrus.Errorf("[GetConversationInfo] GetConversationMemberInfos err. err = %v", err)
-		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
-		return resp, nil
-	}
+	//userIds, err := GetConversationMemberIds(ctx, req.GetConShortId())
+	//if err != nil {
+	//	logrus.Errorf("[GetConversationInfo] GetConversationMemberIds err. err = %v", err)
+	//	resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+	//	return resp, nil
+	//}
+	//userInfos, err := GetConversationMemberInfos(ctx, req.GetConShortId(), userIds)
+	//if err != nil {
+	//	logrus.Errorf("[GetConversationInfo] GetConversationMemberInfos err. err = %v", err)
+	//	resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+	//	return resp, nil
+	//}
 	conInfo := &im.ConversationInfo{
-		ConShortId:     req.GetConShortId(),
-		ConId:          core[0].GetConId(),
-		ConType:        core[0].GetConType(),
-		UserConIndex:   0,
-		BadgeCount:     0,
-		IsMember:       true,
-		Members:        userInfos,
+		ConShortId:   req.GetConShortId(),
+		ConId:        core[0].GetConId(),
+		ConType:      core[0].GetConType(),
+		UserConIndex: 0,
+		BadgeCount:   0,
+		IsMember:     true,
+		//Members:        userInfos,
 		ConCoreInfo:    core[0],
 		ConSettingInfo: setting[0],
 	}

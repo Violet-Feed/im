@@ -83,13 +83,12 @@ message ConversationCoreInfo {
   string name = 4;
   string avatar_uri = 5;
   string description = 6;
-  string notice = 7;
-  int64 owner_id = 8;
-  int64 create_time = 9;
-  int64 modify_time = 10;
-  int32 status = 11;
-  string extra = 12;
-  int32 member_count = 13;
+  int64 owner_id = 7;
+  int64 create_time = 8;
+  int64 modify_time = 9;
+  int32 status = 10;
+  string extra = 11;
+  int32 member_count = 12;
 }
 
 message ConversationSettingInfo{
@@ -97,7 +96,7 @@ message ConversationSettingInfo{
   int64 con_short_id = 2;
   int32 con_type = 3;
   int64 min_index = 4;
-  int64 top_time_stamp = 5;
+  int64 top_timestamp = 5;
   int32 push_status = 6;
   int64 modify_time = 7;
   string extra = 8;
@@ -110,12 +109,10 @@ message ConversationUserInfo {
   int64 user_id = 2;
   int32 privilege = 3;
   string nick_name = 4;
-  int64 block_time_stamp = 5;
-  int64 operator = 6;
-  int64 create_time = 7;
-  int64 modify_time = 8;
-  int32 status = 9;
-  string extra = 10;
+  int64 create_time = 5;
+  int64 modify_time = 6;
+  int32 status = 7;
+  string extra = 8;
 }
 
 message SendMessageRequest{
@@ -209,6 +206,14 @@ message AddConversationMembersRequest{
   int64 operator = 4;
 }
 message AddConversationMembersResponse{
+  common.BaseResp baseResp = 255;
+}
+
+message GetConversationMembersRequest{
+  int64 con_short_id = 1;
+}
+message GetConversationMembersResponse{
+  repeated ConversationUserInfo members = 1;
   common.BaseResp baseResp = 255;
 }
 
@@ -323,6 +328,7 @@ service IMService{
   rpc CreateConversation(CreateConversationRequest)returns(CreateConversationResponse);
   rpc GetConversationInfo(GetConversationInfoRequest)returns(GetConversationInfoResponse);
   rpc AddConversationMembers(AddConversationMembersRequest)returns(AddConversationMembersResponse);
+  rpc GetConversationMembers(GetConversationMembersRequest)returns(GetConversationMembersResponse);
   rpc GetMembersReadIndex(GetMembersReadIndexRequest)returns(GetMembersReadIndexResponse);
   rpc SendNotice(SendNoticeRequest)returns(SendNoticeResponse);
   rpc GetNoticeList(GetNoticeListRequest)returns(GetNoticeListResponse);
