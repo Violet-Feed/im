@@ -3,14 +3,15 @@ package mq
 import (
 	"context"
 	"encoding/json"
+	"im/proto_gen/im"
+	"im/util/backoff"
+	"strconv"
+
 	"github.com/apache/rocketmq-client-go/v2"
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/apache/rocketmq-client-go/v2/producer"
 	"github.com/sirupsen/logrus"
-	"im/proto_gen/im"
-	"im/util/backoff"
-	"strconv"
 )
 
 var p rocketmq.Producer

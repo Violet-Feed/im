@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"im/dal"
 	"im/proto_gen/im"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 const CoreInfoExpireTime = 24 * time.Hour

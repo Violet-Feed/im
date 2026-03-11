@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 	"im/biz/model"
 	"im/dal"
 	"im/proto_gen/common"
@@ -14,6 +12,9 @@ import (
 	"im/util"
 	"strconv"
 	"time"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/sirupsen/logrus"
 )
 
 func CreateConversation(ctx context.Context, req *im.CreateConversationRequest) (resp *im.CreateConversationResponse, err error) {
@@ -48,9 +49,6 @@ func CreateConversation(ctx context.Context, req *im.CreateConversationRequest) 
 	if req.GetConType() == int32(im.ConversationType_One_Chat) || req.GetConType() == int32(im.ConversationType_AI_Chat) {
 		//创建setting
 		for _, member := range req.GetMembers() {
-			if member == int64(common.SpecialUser_AI) {
-				continue
-			}
 			settingModel := model.PackSettingModel(member, conShortId, req)
 			err := model.InsertSettingInfo(ctx, settingModel)
 			if err != nil {
@@ -348,7 +346,8 @@ func MarkRead(ctx context.Context, req *im.MarkReadRequest) (resp *im.MarkReadRe
 	}
 	cmdMessageByte, _ := json.Marshal(cmdMessage)
 	sendMessageRequest := &im.SendMessageRequest{
-		UserId:     req.GetUserId(),
+		SenderId:   req.GetUserId(),
+		SenderType: int32(im.SenderType_User),
 		ConShortId: req.GetConShortId(),
 		ConId:      cores[0].GetConId(),
 		ConType:    cores[0].GetConType(),

@@ -2,10 +2,11 @@ package rpc
 
 import (
 	"context"
+	"im/proto_gen/action"
+
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"im/proto_gen/action"
 )
 
 type ActionService interface {

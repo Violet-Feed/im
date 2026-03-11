@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"im/dal"
 	"im/proto_gen/im"
 	"strconv"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 const SettingInfoExpireTime = 6 * time.Hour
@@ -46,19 +47,36 @@ func InsertSettingInfo(ctx context.Context, setting *ConversationSettingInfo) er
 }
 
 func InsertSettingInfos(ctx context.Context, settings []*ConversationSettingInfo) error {
-	logrus.Infof("[InsertSettingInfos] settings = %v", settings)
-	err := dal.MysqlDB.Create(&settings).Error
-	if err != nil {
-		logrus.Errorf("[InsertSettingInfo] mysql insert setting err. err = %v", err)
+	tx := dal.MysqlDB.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			logrus.Errorf("[InsertSettingInfos] panic recovered: %v", r)
+		}
+	}()
+	for i := range settings {
+		if err := tx.Create(settings[i]).Error; err != nil {
+			tx.Rollback()
+			logrus.Errorf("[InsertSettingInfos] mysql insert setting err. err = %v", err)
+			return err
+		}
+	}
+	if err := tx.Commit().Error; err != nil {
+		logrus.Errorf("[InsertSettingInfos] mysql commit err. err = %v", err)
 		return err
 	}
-	keys, values := make([]string, 0), make([]string, 0)
+	var keys, values []string
 	for _, setting := range settings {
-		key := fmt.Sprintf("setting:%d:%d", setting.ConShortId, setting.UserId)
-		value, err := json.Marshal(setting)
+		key := fmt.Sprintf("setting:%v:%v", setting.ConShortId, setting.UserId)
+		valueByte, err := json.Marshal(setting)
 		if err != nil {
+			logrus.Errorf("[InsertSettingInfos] json marshal err. err = %v", err)
+		} else {
 			keys = append(keys, key)
-			values = append(values, string(value))
+			values = append(values, string(valueByte))
 		}
 	}
 	_ = dal.RedisServer.BatchSet(ctx, keys, values, 1*time.Minute)

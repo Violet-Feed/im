@@ -1,13 +1,14 @@
 package main
 
 import (
-	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 	"im/consumer"
 	"im/dal"
 	"im/proto_gen/im"
 	"net"
+
+	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -16,6 +17,7 @@ func main() {
 		FullTimestamp:   true,
 		ForceColors:     true,
 	})
+	logrus.Infof("[main] server start")
 	dal.InitService()
 	consumer.InitConsumer()
 	lis, err := net.Listen("tcp", ":3004")

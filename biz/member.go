@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 	"im/biz/model"
 	"im/dal"
 	"im/proto_gen/common"
@@ -15,6 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/sirupsen/logrus"
 )
 
 const ConversationLimit = 100
@@ -91,13 +92,14 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 	}
 	conMessageByte, _ := json.Marshal(conMessage)
 	sendMessageRequest := &im.SendMessageRequest{
-		UserId:      int64(common.SpecialUser_Conversation),
+		SenderId:    0,
+		SenderType:  int32(im.SenderType_Conv),
 		ConShortId:  req.GetConShortId(),
 		ConId:       req.GetConId(),
 		ConType:     int32(im.ConversationType_Group_Chat),
 		MsgType:     int32(im.MessageType_Conversation),
 		MsgContent:  string(conMessageByte),
-		ClientMsgId: -1,
+		ClientMsgId: 0,
 	}
 	logrus.Infof("[AddConversationMembers] sendMessageRequest = %v", sendMessageRequest)
 	_, err = SendMessage(ctx, sendMessageRequest)
@@ -202,6 +204,15 @@ func IsSingleMember(ctx context.Context, conId string, userId int64) int32 {
 	minId, _ := strconv.ParseInt(parts[0], 10, 64)
 	maxId, _ := strconv.ParseInt(parts[1], 10, 64)
 	if userId == minId || userId == maxId {
+		return 1
+	}
+	return 0
+}
+
+func IsAIMember(ctx context.Context, conId string, userId int64) int32 {
+	parts := strings.Split(conId, ":")
+	realId, _ := strconv.ParseInt(parts[1], 10, 64)
+	if userId == realId {
 		return 1
 	}
 	return 0

@@ -1,11 +1,12 @@
 package dal
 
 import (
-	"github.com/jinzhu/gorm"
 	"im/dal/kvrocks"
 	"im/dal/mysql"
 	"im/dal/redis"
 	"im/dal/rpc"
+
+	"github.com/jinzhu/gorm"
 )
 
 var (

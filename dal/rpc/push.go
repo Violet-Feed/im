@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"im/proto_gen/common"
+	"im/proto_gen/push"
+
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"im/proto_gen/common"
-	"im/proto_gen/push"
 )
 
 type PushService interface {

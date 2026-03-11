@@ -3,9 +3,6 @@ package consumer
 import (
 	"context"
 	"encoding/json"
-	"github.com/apache/rocketmq-client-go/v2/consumer"
-	"github.com/apache/rocketmq-client-go/v2/primitive"
-	"github.com/sirupsen/logrus"
 	"im/biz"
 	"im/biz/constant"
 	"im/dal"
@@ -14,6 +11,10 @@ import (
 	"im/proto_gen/push"
 	"im/util/backoff"
 	"strconv"
+
+	"github.com/apache/rocketmq-client-go/v2/consumer"
+	"github.com/apache/rocketmq-client-go/v2/primitive"
+	"github.com/sirupsen/logrus"
 )
 
 func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
@@ -25,7 +26,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	pushRequest := &push.PushRequest{
 		UserId: userId,
 	}
-	if messageEvent.GetMsgBody().GetMsgType() < 100 {
+	if messageEvent.GetMsgBody().GetMsgType() <= constant.COMMAND_THRESHOLD {
 		//写入用户会话链
 		if messageEvent.GetUserConIndex() == 0 {
 			userConIndex, preUserConIndex, err := biz.AppendUserConIndex(ctx, userId, messageEvent.GetMsgBody().GetConShortId())
@@ -38,7 +39,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		}
 		//增加消息总数
 		if messageEvent.GetBadgeCount() == 0 {
-			if userId != messageEvent.GetMsgBody().GetUserId() && messageEvent.GetMsgBody().GetMsgType() != int32(im.MessageType_Conversation) {
+			if userId != messageEvent.GetMsgBody().GetSenderId() && messageEvent.GetMsgBody().GetMsgType() != int32(im.MessageType_Conversation) {
 				badgeCount, err := biz.IncrConversationBadge(ctx, userId, messageEvent.GetMsgBody().GetConShortId())
 				if err != nil {
 					logrus.Errorf("[UserProcess] IncrConversationBadge err. err = %v", err)
@@ -62,7 +63,9 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		}
 		pushRequest.PacketType = push.PacketType_Normal
 		pushRequest.NormalPacket = normalPacket
-	} else {
+	}
+	//todo:处理群聊消息，这里要想想发什么消息
+	if messageEvent.GetMsgBody().GetMsgType() >= constant.COMMAND_THRESHOLD {
 		//写入用户命令链
 		if messageEvent.GetUserCmdIndex() == 0 {
 			userCmdIndex, err := biz.AppendUserCmdIndex(ctx, userId, messageEvent.GetMsgBody().GetMsgId())

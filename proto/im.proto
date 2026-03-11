@@ -12,7 +12,6 @@ enum ConversationType{
   Group_Chat = 2;
   Service_Chat = 3;
   AI_Chat = 4;
-  System_Chat = 5;
 }
 
 enum MessageType{
@@ -21,7 +20,7 @@ enum MessageType{
   Image = 2;
   Video = 3;
   Forward = 4;
-  Conversation = 5;
+  Conversation = 100;
   MarkRead = 101;
   UpdateMessage = 102;
 }
@@ -31,7 +30,18 @@ enum ConMessageType{
   Add_Member = 1;
   Remove_Member = 2;
   Modify_Name = 3;
-  Modify_Description = 4;
+  Modify_Avatar = 4;
+  Modify_Description = 5;
+  Disband = 6;
+  Add_Agent = 7;
+  Remove_Agent = 8;
+}
+
+enum SenderType{
+  SenderType_Not_Use = 0;
+  User = 1;
+  AI = 2;
+  Conv = 3;
 }
 
 message MessageEvent{
@@ -51,17 +61,18 @@ message ConversationMessage{
 }
 
 message MessageBody{
-  int64 user_id = 1;
-  string con_id = 2;
-  int64 con_short_id = 3;
-  int32 con_type = 4;
-  int64 client_msg_id = 5;
-  int64 msg_id = 6;
-  int32 msg_type = 7;
-  string msg_content = 8;
-  int64 create_time = 9;
-  string extra = 10;
-  int64 con_index = 11;
+  int64 sender_id = 1;
+  int32 sender_type = 2;
+  string con_id = 3;
+  int64 con_short_id = 4;
+  int32 con_type = 5;
+  int64 client_msg_id = 6;
+  int64 msg_id = 7;
+  int32 msg_type = 8;
+  string msg_content = 9;
+  int64 create_time = 10;
+  string extra = 11;
+  int64 con_index = 12;
 }
 
 message ConversationInfo{
@@ -116,13 +127,14 @@ message ConversationUserInfo {
 }
 
 message SendMessageRequest{
-  int64 user_id = 1;
-  int64 con_short_id = 2;
-  string con_id = 3;
-  int32 con_type = 4;
-  int64 client_msg_id = 5;
-  int32 msg_type = 6;
-  string msg_content = 7;
+  int64 sender_id = 1;
+  int32 sender_type = 2;
+  int64 con_short_id = 3;
+  string con_id = 4;
+  int32 con_type = 5;
+  int64 client_msg_id = 6;
+  int32 msg_type = 7;
+  string msg_content = 8;
 }
 message SendMessageResponse{
   int64 msg_id = 1;
@@ -225,15 +237,74 @@ message GetMembersReadIndexResponse{
   common.BaseResp baseResp = 255;
 }
 
-message RagModelMessage{
-  string content = 1;
-  string role = 2;
+message AgentInfo{
+  int64 agent_id = 1;
+  string agent_name = 2;
+  string avatar_uri = 3;
+  string description = 4;
+  string personality = 5;
+  int64 owner_id = 6;
+  int64 create_time = 7;
+  int64 modify_time = 8;
+  int32 status = 9;
+  string extra = 10;
 }
-message RagModelRequest{
-  string query = 1;
-  string conversation_id = 2;
-  repeated RagModelMessage history = 3;
-  string source = 4;
+
+message ConversationAgentInfo{
+  int64 con_short_id = 1;
+  int64 agent_id = 2;
+  int64 create_time = 3;
+  int64 modify_time = 4;
+  int32 status = 5;
+  string extra = 6;
+  AgentInfo agent_info = 7;
+}
+
+message CreateAgentRequest{
+  int64 user_id = 1;
+  string agent_name = 2;
+  string avatar_uri = 3;
+  string description = 4;
+  string personality = 5;
+}
+message CreateAgentResponse{
+  int64 agent_id = 1;
+  common.BaseResp baseResp = 255;
+}
+
+message GetAgentByIdRequest{
+  int64 agent_id = 1;
+}
+message GetAgentByIdResponse{
+  AgentInfo agent_info = 1;
+  common.BaseResp baseResp = 255;
+}
+
+message GetAgentsByUserRequest{
+  int64 user_id = 1;
+  int32 page = 2;
+}
+message GetAgentsByUserResponse{
+  repeated AgentInfo agents = 1;
+  common.BaseResp baseResp = 255;
+}
+
+message AddConversationAgentRequest{
+  int64 con_short_id = 1;
+  string con_id = 2;
+  repeated int64 agent_ids = 3;
+  int64 operator = 4;
+}
+message AddConversationAgentResponse{
+  common.BaseResp baseResp = 255;
+}
+
+message GetConversationAgentsRequest{
+  int64 con_short_id = 1;
+}
+message GetConversationAgentsResponse{
+  repeated ConversationAgentInfo agents = 1;
+  common.BaseResp baseResp = 255;
 }
 
 enum NoticeGroup{
@@ -330,6 +401,7 @@ service IMService{
   rpc AddConversationMembers(AddConversationMembersRequest)returns(AddConversationMembersResponse);
   rpc GetConversationMembers(GetConversationMembersRequest)returns(GetConversationMembersResponse);
   rpc GetMembersReadIndex(GetMembersReadIndexRequest)returns(GetMembersReadIndexResponse);
+  rpc GetConversationAgents(GetConversationAgentsRequest)returns(GetConversationAgentsResponse);
   rpc SendNotice(SendNoticeRequest)returns(SendNoticeResponse);
   rpc GetNoticeList(GetNoticeListRequest)returns(GetNoticeListResponse);
   rpc GetNoticeAggList(GetNoticeAggListRequest)returns(GetNoticeAggListResponse);

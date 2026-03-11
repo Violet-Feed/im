@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 	"im/dal"
 	"im/proto_gen/im"
 	"strconv"
 	"time"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/sirupsen/logrus"
 )
 
 const UserInfoExpireTime = 24 * time.Hour

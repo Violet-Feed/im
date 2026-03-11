@@ -1,11 +1,12 @@
 package consumer
 
 import (
+	"im/biz/constant"
+
 	"github.com/apache/rocketmq-client-go/v2"
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/rlog"
 	"github.com/sirupsen/logrus"
-	"im/biz/constant"
 )
 
 func InitConsumer() {

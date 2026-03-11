@@ -3,9 +3,10 @@ package redis
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 type RedisService interface {

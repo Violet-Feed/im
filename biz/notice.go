@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 	"im/dal"
 	"im/proto_gen/common"
 	"im/proto_gen/im"
@@ -14,6 +12,9 @@ import (
 	"im/util"
 	"strconv"
 	"time"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/sirupsen/logrus"
 )
 
 func SendNotice(ctx context.Context, req *im.SendNoticeRequest) (resp *im.SendNoticeResponse, err error) {

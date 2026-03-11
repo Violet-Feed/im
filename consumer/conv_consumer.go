@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/apache/rocketmq-client-go/v2/consumer"
-	"github.com/apache/rocketmq-client-go/v2/primitive"
-	"github.com/sirupsen/logrus"
 	"im/biz"
 	"im/biz/constant"
 	"im/dal/mq"
 	"im/proto_gen/im"
 	"strconv"
 	"strings"
+
+	"github.com/apache/rocketmq-client-go/v2/consumer"
+	"github.com/apache/rocketmq-client-go/v2/primitive"
+	"github.com/sirupsen/logrus"
 )
 
 func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
@@ -29,7 +30,7 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		messageEvent.Stored = true
 	}
 	//写入会话链
-	if messageEvent.GetConIndex() == 0 && messageEvent.GetMsgBody().GetMsgType() < 100 {
+	if messageEvent.GetConIndex() == 0 && messageEvent.GetMsgBody().GetMsgType() <= constant.COMMAND_THRESHOLD {
 		conIndex, err := biz.AppendConversationIndex(ctx, messageEvent.GetMsgBody().GetConShortId(), messageEvent.GetMsgBody().GetMsgId())
 		if err != nil {
 			logrus.Errorf("[ConvProcess] AppendConversationIndex err. err = %v", err)
@@ -56,7 +57,7 @@ func ConvProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 
 func getReceivers(ctx context.Context, event *im.MessageEvent) ([]int64, error) {
 	if event.GetMsgBody().GetMsgType() == int32(im.MessageType_MarkRead) {
-		return []int64{event.GetMsgBody().GetUserId()}, nil
+		return []int64{event.GetMsgBody().GetSenderId()}, nil
 	}
 	switch event.GetMsgBody().GetConType() {
 	case int32(im.ConversationType_One_Chat):
