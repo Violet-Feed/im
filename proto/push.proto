@@ -11,24 +11,20 @@ enum PacketType{
   PacketType_Not_Use = 0;
   Connect = 1;
   Heartbeat = 2;
-  Normal = 3;
-  Command = 4;
-  Material = 5;
-  Notice = 6;
+  Message = 3;
+  Material = 4;
+  Notice = 5;
 }
 
 message ConnectPacket{
   int64 user_id = 1;
 }
-message NormalPacket{
+message MessagePacket{
   int64 user_con_index = 1;
   int64 pre_user_con_index = 2;
-  int64 badge_count = 3;
-  im.MessageBody msg_body = 4;
-}
-message CommandPacket{
-  int64 user_cmd_index = 1;
-  im.MessageBody msg_body = 2;
+  int64 user_cmd_index = 3;
+  int64 badge_count = 4;
+  im.MessageBody msg_body = 5;
 }
 message MaterialPacket{
   int64 material_id = 1;
@@ -53,10 +49,9 @@ message NoticePacket{
 message PushRequest{
   PacketType packet_type = 1;
   int64 user_id = 2;
-  NormalPacket normal_packet = 3;
-  CommandPacket command_packet = 4;
-  MaterialPacket material_packet = 5;
-  NoticePacket notice_packet = 6;
+  MessagePacket message_packet = 3;
+  MaterialPacket material_packet = 4;
+  NoticePacket notice_packet = 5;
 }
 message PushResponse{
   common.BaseResp baseResp = 255;

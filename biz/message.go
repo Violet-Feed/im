@@ -125,14 +125,14 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 	return resp, nil
 }
 
-func GetMessages(ctx context.Context, conShortId int64, msgIds []int64) ([]*im.MessageBody, error) {
+func GetMessages(ctx context.Context, msgIds []int64) ([]*im.MessageBody, error) {
 	messageBodies := make([]*im.MessageBody, 0)
 	if len(msgIds) == 0 {
 		return messageBodies, nil
 	}
 	keys := make([]string, 0)
 	for _, id := range msgIds {
-		keys = append(keys, fmt.Sprintf("msg:%d:%d", conShortId, id))
+		keys = append(keys, fmt.Sprintf("msg:%d", id))
 	}
 	messages, err := dal.KvrocksServer.MGet(ctx, keys)
 	if err != nil {
@@ -147,36 +147,8 @@ func GetMessages(ctx context.Context, conShortId int64, msgIds []int64) ([]*im.M
 	return messageBodies, nil
 }
 
-func GetCommands(ctx context.Context, userId int64, msgIds []int64) ([]*im.MessageBody, error) {
-	messageBodies := make([]*im.MessageBody, 0)
-	if len(msgIds) == 0 {
-		return messageBodies, nil
-	}
-	keys := make([]string, 0)
-	for _, id := range msgIds {
-		keys = append(keys, fmt.Sprintf("cmd:%d:%d", userId, id))
-	}
-	messages, err := dal.KvrocksServer.MGet(ctx, keys)
-	if err != nil {
-		logrus.Errorf("[GetCommands] kvrocks mget err. err = %v", err)
-		return nil, err
-	}
-	for _, message := range messages {
-		var messageBody im.MessageBody
-		_ = json.Unmarshal([]byte(message), &messageBody)
-		messageBodies = append(messageBodies, &messageBody)
-	}
-	return messageBodies, nil
-}
-
 func StoreMessage(ctx context.Context, msgBody *im.MessageBody) error {
-	var key string
-	//todo:这里也要想想
-	if msgBody.MsgType >= constant.COMMAND_THRESHOLD {
-		key = fmt.Sprintf("cmd:%d:%d", msgBody.GetSenderId(), msgBody.GetMsgId())
-	} else {
-		key = fmt.Sprintf("msg:%d:%d", msgBody.GetConShortId(), msgBody.GetMsgId())
-	}
+	key := fmt.Sprintf("msg:%d", msgBody.GetMsgId())
 	messageBody, err := json.Marshal(msgBody)
 	if err != nil {
 		logrus.Errorf("[StoreMessage] marshal messageBody err. err = %v", err)
@@ -232,7 +204,7 @@ func GetMessageByUser(ctx context.Context, req *im.GetMessageByUserRequest) (res
 					return
 				}
 				//TODO:过滤撤回消息
-				msgBodies, err := GetMessages(ctx, convShortId, msgIds)
+				msgBodies, err := GetMessages(ctx, msgIds)
 				if err != nil {
 					logrus.Errorf("[GetMessageByUser] GetMessage err. err = %v", err)
 					msgBodiesChan <- nil
@@ -398,7 +370,7 @@ func GetCommandByUser(ctx context.Context, req *im.GetCommandByUserRequest) (res
 	} else {
 		resp.UserCmdIndex = userCmdIndexes[len(userCmdIndexes)-1]
 	}
-	msgBodies, err := GetCommands(ctx, req.GetUserId(), msgIds)
+	msgBodies, err := GetMessages(ctx, msgIds)
 	if err != nil {
 		logrus.Errorf("[GetCommandByUser] GetCommands err. err = %v", err)
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
@@ -448,7 +420,7 @@ func GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversat
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 		return resp, err
 	}
-	msgBodies, err := GetMessages(ctx, req.GetConShortId(), msgIds)
+	msgBodies, err := GetMessages(ctx, msgIds)
 	if err != nil {
 		logrus.Errorf("[GetMessageByConversation] GetMessages err. err = %v", err)
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}

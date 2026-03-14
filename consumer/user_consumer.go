@@ -23,9 +23,6 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 	userId, _ := strconv.ParseInt(msgs[0].GetShardingKey(), 10, 64)
 	logrus.Infof("[UserProcess] rocketmq receive message success. message = %v, tag = %v", messageEvent, userId)
 	//TODO:判断是否为高频用户(本地+redis,写入高频队列batch)->处理重试消息
-	pushRequest := &push.PushRequest{
-		UserId: userId,
-	}
 	if messageEvent.GetMsgBody().GetMsgType() <= constant.COMMAND_THRESHOLD {
 		//写入用户会话链
 		if messageEvent.GetUserConIndex() == 0 {
@@ -39,7 +36,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		}
 		//增加消息总数
 		if messageEvent.GetBadgeCount() == 0 {
-			if userId != messageEvent.GetMsgBody().GetSenderId() && messageEvent.GetMsgBody().GetMsgType() != int32(im.MessageType_Conversation) {
+			if userId != messageEvent.GetMsgBody().GetSenderId() {
 				badgeCount, err := biz.IncrConversationBadge(ctx, userId, messageEvent.GetMsgBody().GetConShortId())
 				if err != nil {
 					logrus.Errorf("[UserProcess] IncrConversationBadge err. err = %v", err)
@@ -55,16 +52,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 				messageEvent.BadgeCount = badgeCount[0]
 			}
 		}
-		normalPacket := &push.NormalPacket{
-			UserConIndex:    messageEvent.GetUserConIndex(),
-			PreUserConIndex: messageEvent.GetPreUserConIndex(),
-			BadgeCount:      messageEvent.GetBadgeCount(),
-			MsgBody:         messageEvent.GetMsgBody(),
-		}
-		pushRequest.PacketType = push.PacketType_Normal
-		pushRequest.NormalPacket = normalPacket
 	}
-	//todo:处理群聊消息，这里要想想发什么消息
 	if messageEvent.GetMsgBody().GetMsgType() >= constant.COMMAND_THRESHOLD {
 		//写入用户命令链
 		if messageEvent.GetUserCmdIndex() == 0 {
@@ -75,12 +63,17 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 			}
 			messageEvent.UserCmdIndex = userCmdIndex
 		}
-		commandPacket := &push.CommandPacket{
-			UserCmdIndex: messageEvent.GetUserCmdIndex(),
-			MsgBody:      messageEvent.GetMsgBody(),
-		}
-		pushRequest.PacketType = push.PacketType_Command
-		pushRequest.CommandPacket = commandPacket
+	}
+	pushRequest := &push.PushRequest{
+		PacketType: push.PacketType_Message,
+		UserId:     userId,
+		MessagePacket: &push.MessagePacket{
+			UserConIndex:    messageEvent.GetUserConIndex(),
+			PreUserConIndex: messageEvent.GetPreUserConIndex(),
+			UserCmdIndex:    messageEvent.GetUserCmdIndex(),
+			BadgeCount:      messageEvent.GetBadgeCount(),
+			MsgBody:         messageEvent.GetMsgBody(),
+		},
 	}
 	err := backoff.Retry(func() error {
 		err := dal.PushServer.Push(ctx, pushRequest)
