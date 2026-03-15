@@ -84,3 +84,13 @@ func (s *IMServerImpl) MarkNoticeRead(ctx context.Context, req *im.MarkNoticeRea
 	resp, _ := biz.MarkNoticeRead(ctx, req)
 	return resp, nil
 }
+
+func (s *IMServerImpl) AddConversationAgents(ctx context.Context, req *im.AddConversationAgentsRequest) (*im.AddConversationAgentsResponse, error) {
+	resp, _ := biz.AddConversationAgents(ctx, req)
+	return resp, nil
+}
+
+func (s *IMServerImpl) GetConversationAgents(ctx context.Context, req *im.GetConversationAgentsRequest) (*im.GetConversationAgentsResponse, error) {
+	resp, _ := biz.GetConversationAgents(ctx, req)
+	return resp, nil
+}
