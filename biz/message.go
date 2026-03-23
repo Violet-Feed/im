@@ -55,11 +55,11 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 	if req.GetConType() == int32(im.ConversationType_One_Chat) {
 		isMember = IsSingleMember(ctx, req.GetConId(), req.GetSenderId())
 	} else if req.GetConType() == int32(im.ConversationType_AI_Chat) {
-		isMember = IsAIMember(ctx, req.GetConId(), req.GetSenderId())
+		isMember = IsAIMember(ctx, req.GetConId(), req.GetSenderType(), req.GetSenderId())
 	} else if req.GetConType() == int32(im.ConversationType_Group_Chat) {
 		if req.GetSenderType() == int32(im.SenderType_Conv) {
 			isMember = 1
-		} else {
+		} else if req.GetSenderType() == int32(im.SenderType_User) {
 			status, err := IsGroupsMember(ctx, []int64{req.GetConShortId()}, req.GetSenderId())
 			if err != nil {
 				logrus.Errorf("[SendMessage] IsConversationMembers err. err = %v", err)
@@ -67,6 +67,8 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 				return resp, err
 			}
 			isMember = status[req.GetConShortId()]
+		} else {
+			isMember, _ = IsGroupAI(ctx, req.GetConShortId(), req.GetSenderId())
 		}
 	}
 	if isMember != 1 {
@@ -249,7 +251,7 @@ func GetMessageByUser(ctx context.Context, req *im.GetMessageByUserRequest) (res
 				if core.GetConType() == int32(im.ConversationType_One_Chat) {
 					statusMap[conShortId] = IsSingleMember(ctx, core.GetConId(), req.GetUserId())
 				} else if core.GetConType() == int32(im.ConversationType_AI_Chat) {
-					statusMap[conShortId] = IsAIMember(ctx, core.GetConId(), req.GetUserId())
+					statusMap[conShortId] = IsAIMember(ctx, core.GetConId(), int32(im.SenderType_User), req.GetUserId())
 				} else if core.GetConType() == int32(im.ConversationType_Group_Chat) {
 					groupIds = append(groupIds, conShortId)
 				}
@@ -399,7 +401,7 @@ func GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversat
 	if cores[0].GetConType() == int32(im.ConversationType_One_Chat) {
 		isMember = IsSingleMember(ctx, cores[0].GetConId(), req.GetUserId())
 	} else if cores[0].GetConType() == int32(im.ConversationType_AI_Chat) {
-		isMember = IsAIMember(ctx, cores[0].GetConId(), req.GetUserId())
+		isMember = IsAIMember(ctx, cores[0].GetConId(), int32(im.SenderType_User), req.GetUserId())
 	} else if cores[0].GetConType() == int32(im.ConversationType_Group_Chat) {
 		status, err := IsGroupsMember(ctx, []int64{req.GetConShortId()}, req.GetUserId())
 		if err != nil {

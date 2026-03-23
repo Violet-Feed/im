@@ -58,6 +58,20 @@ func GetAgentInfos(ctx context.Context, conShortId int64) ([]*ConversationAgentI
 	return agentInfos, nil
 }
 
+func GetAgentInfosByIds(ctx context.Context, conShortId int64, agentIds []int64) (map[int64]ConversationAgentInfo, error) {
+	var agentInfo []ConversationAgentInfo
+	err := dal.MysqlDB.Where("con_short_id = (?) and agent_id in (?)", conShortId, agentIds).Find(&agentInfo).Error
+	if err != nil {
+		logrus.Errorf("[GetAgentInfosByIds] mysql get agent infos err. err = %v", err)
+		return nil, err
+	}
+	agentInfoMap := make(map[int64]ConversationAgentInfo)
+	for _, a := range agentInfo {
+		agentInfoMap[a.AgentId] = a
+	}
+	return agentInfoMap, nil
+}
+
 func PackAgentModel(agentId int64, req *im.AddConversationAgentsRequest) *ConversationAgentInfo {
 	agent := &ConversationAgentInfo{
 		ConShortId: req.ConShortId,

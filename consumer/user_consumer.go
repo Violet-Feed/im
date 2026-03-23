@@ -36,7 +36,7 @@ func UserProcess(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.C
 		}
 		//增加消息总数
 		if messageEvent.GetBadgeCount() == 0 {
-			if userId != messageEvent.GetMsgBody().GetSenderId() {
+			if userId != messageEvent.GetMsgBody().GetSenderId() && messageEvent.GetMsgBody().GetSenderId() != 0 {
 				badgeCount, err := biz.IncrConversationBadge(ctx, userId, messageEvent.GetMsgBody().GetConShortId())
 				if err != nil {
 					logrus.Errorf("[UserProcess] IncrConversationBadge err. err = %v", err)

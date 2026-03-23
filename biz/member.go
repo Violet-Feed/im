@@ -199,6 +199,18 @@ func IsGroupsMember(ctx context.Context, conShortIds []int64, userId int64) (map
 	//并发redis zscore;err mysql
 }
 
+func IsGroupAI(ctx context.Context, conShortId int64, agentId int64) (int32, error) {
+	agentInfo, err := model.GetAgentInfosByIds(ctx, conShortId, []int64{agentId})
+	if err != nil {
+		logrus.Errorf("[IsGroupAI] GetAgentInfosByIds err. err = %v", err)
+		return 0, err
+	}
+	if len(agentInfo) > 0 {
+		return 1, nil
+	}
+	return 0, nil
+}
+
 func IsSingleMember(ctx context.Context, conId string, userId int64) int32 {
 	parts := strings.Split(conId, ":")
 	minId, _ := strconv.ParseInt(parts[0], 10, 64)
@@ -209,10 +221,13 @@ func IsSingleMember(ctx context.Context, conId string, userId int64) int32 {
 	return 0
 }
 
-func IsAIMember(ctx context.Context, conId string, userId int64) int32 {
+func IsAIMember(ctx context.Context, conId string, senderType int32, senderId int64) int32 {
 	parts := strings.Split(conId, ":")
 	realId, _ := strconv.ParseInt(parts[1], 10, 64)
-	if userId == realId {
+	if senderType == int32(im.SenderType_AI) {
+		realId, _ = strconv.ParseInt(parts[2], 10, 64)
+	}
+	if senderId == realId {
 		return 1
 	}
 	return 0
