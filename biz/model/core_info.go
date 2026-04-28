@@ -47,6 +47,28 @@ func InsertCoreInfo(ctx context.Context, core *ConversationCoreInfo) error {
 	return nil
 }
 
+func DeleteCoreInfo(ctx context.Context, conShortId int64) error {
+	err := dal.MysqlDB.Where("con_short_id = ?", conShortId).Delete(&ConversationCoreInfo{}).Error
+	if err != nil {
+		logrus.Errorf("[DeleteCoreInfo] mysql delete core err. err = %v", err)
+		return err
+	}
+	key := fmt.Sprintf("core:%d", conShortId)
+	_ = dal.RedisServer.Del(ctx, key)
+	return nil
+}
+
+func UpdateCoreInfo(ctx context.Context, core *ConversationCoreInfo) error {
+	err := dal.MysqlDB.Save(core).Error
+	if err != nil {
+		logrus.Errorf("[UpdateCoreInfo] mysql update core err. err = %v", err)
+		return err
+	}
+	key := fmt.Sprintf("core:%d", core.ConShortId)
+	_ = dal.RedisServer.Del(ctx, key)
+	return nil
+}
+
 func GetCoreInfos(ctx context.Context, conShortIds []int64) (map[int64]*ConversationCoreInfo, error) {
 	var keys []string
 	var missIds []int64

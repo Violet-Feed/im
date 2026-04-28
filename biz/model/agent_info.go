@@ -48,6 +48,15 @@ func InsertAgentInfos(ctx context.Context, agents []*ConversationAgentInfo) erro
 	return nil
 }
 
+func DeleteAgentInfo(ctx context.Context, conShortId int64, agentId int64) error {
+	err := dal.MysqlDB.Where("con_short_id = ? and agent_id = ?", conShortId, agentId).Delete(&ConversationAgentInfo{}).Error
+	if err != nil {
+		logrus.Errorf("[DeleteAgentInfo] mysql delete agent info err. err = %v", err)
+		return err
+	}
+	return nil
+}
+
 func GetAgentInfos(ctx context.Context, conShortId int64) ([]*ConversationAgentInfo, error) {
 	var agentInfos []*ConversationAgentInfo
 	err := dal.MysqlDB.Where("con_short_id = ?", conShortId).Find(&agentInfos).Error

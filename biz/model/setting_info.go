@@ -83,6 +83,28 @@ func InsertSettingInfos(ctx context.Context, settings []*ConversationSettingInfo
 	return nil
 }
 
+func DeleteSettingInfo(ctx context.Context, userId int64, conShortId int64) error {
+	err := dal.MysqlDB.Where("user_id = ? and con_short_id = ?", userId, conShortId).Delete(&ConversationSettingInfo{}).Error
+	if err != nil {
+		logrus.Errorf("[DeleteSettingInfo] mysql delete setting err. err = %v", err)
+		return err
+	}
+	key := fmt.Sprintf("setting:%d:%d", userId, conShortId)
+	_ = dal.RedisServer.Del(ctx, key)
+	return nil
+}
+
+func UpdateSettingInfo(ctx context.Context, setting *ConversationSettingInfo) error {
+	err := dal.MysqlDB.Save(setting).Error
+	if err != nil {
+		logrus.Errorf("[UpdateSettingInfo] mysql update setting err. err = %v", err)
+		return err
+	}
+	key := fmt.Sprintf("setting:%d:%d", setting.ConShortId, setting.UserId)
+	_ = dal.RedisServer.Del(ctx, key)
+	return nil
+}
+
 func GetSettingInfo(ctx context.Context, userId int64, conShortIds []int64) (map[int64]*ConversationSettingInfo, error) {
 	var keys []string
 	var missIds []int64

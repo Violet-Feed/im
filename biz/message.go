@@ -25,6 +25,20 @@ const (
 	MsgLimit  = 5
 )
 
+func GetInitInfo(ctx context.Context, req *im.GetInitInfoRequest) (*im.GetInitInfoResponse, error) {
+	resp := &im.GetInitInfoResponse{
+		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
+	}
+	userCmdIndex, err := GetLastUserCmdIndex(ctx, req.GetUserId())
+	if err != nil {
+		logrus.Errorf("[GetIMInitInfo] GetLastUserCmdIndex err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
+		return resp, err
+	}
+	resp.UserCmdIndex = userCmdIndex
+	return resp, nil
+}
+
 func checkMessageSendRequest(req *im.SendMessageRequest) bool {
 	if req.GetConId() == "" {
 		return false
@@ -32,7 +46,7 @@ func checkMessageSendRequest(req *im.SendMessageRequest) bool {
 	if req.GetConType() < 1 || req.GetConType() > 4 {
 		return false
 	}
-	if req.GetMsgType() < 1 || req.GetMsgType() > 4 && req.GetMsgType() < 100 || req.GetMsgType() > 102 {
+	if req.GetMsgType() < 1 || req.GetMsgType() > 4 && req.GetMsgType() < 100 || req.GetMsgType() > 104 {
 		return false
 	}
 	if req.GetMsgContent() == "" {
@@ -51,28 +65,14 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 	}
 	messageId := util.MsgIdGenerator.Generate().Int64()
 	//是否群成员
-	var isMember int32
-	if req.GetConType() == int32(im.ConversationType_One_Chat) {
-		isMember = IsSingleMember(ctx, req.GetConId(), req.GetSenderId())
-	} else if req.GetConType() == int32(im.ConversationType_AI_Chat) {
-		isMember = IsAIMember(ctx, req.GetConId(), req.GetSenderType(), req.GetSenderId())
-	} else if req.GetConType() == int32(im.ConversationType_Group_Chat) {
-		if req.GetSenderType() == int32(im.SenderType_Conv) {
-			isMember = 1
-		} else if req.GetSenderType() == int32(im.SenderType_User) {
-			status, err := IsGroupsMember(ctx, []int64{req.GetConShortId()}, req.GetSenderId())
-			if err != nil {
-				logrus.Errorf("[SendMessage] IsConversationMembers err. err = %v", err)
-				resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
-				return resp, err
-			}
-			isMember = status[req.GetConShortId()]
-		} else {
-			isMember, _ = IsGroupAI(ctx, req.GetConShortId(), req.GetSenderId())
-		}
+	isMember, err := checkConversationMember(ctx, req.GetConShortId(), req.GetConId(), req.GetConType(), req.GetSenderType(), req.GetSenderId())
+	if err != nil {
+		logrus.Errorf("[SendMessage] checkConversationMember err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
+		return resp, err
 	}
-	if isMember != 1 {
-		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "conversation not member"}
+	if !isMember {
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Auth_Error, StatusMessage: "not conversation member"}
 		return resp, errors.New("not conversation member")
 	}
 	//ai聊天格式为ai:用户的id:ai的id
@@ -124,6 +124,64 @@ func SendMessage(ctx context.Context, req *im.SendMessageRequest) (resp *im.Send
 		return resp, err
 	}
 	resp.MsgId = messageId
+	return resp, nil
+}
+
+func RecallMessage(ctx context.Context, req *im.RecallMessageRequest) (resp *im.RecallMessageResponse, err error) {
+	resp = &im.RecallMessageResponse{
+		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
+	}
+	messages, err := GetMessages(ctx, []int64{req.GetMsgId()})
+	if err != nil {
+		logrus.Errorf("[RecallMessage] GetMessages err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
+		return resp, err
+	}
+	if len(messages) == 0 {
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "message not found"}
+		return resp, errors.New("message not found")
+	}
+	message := messages[0]
+	if message.GetSenderId() != req.GetUserId() {
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Auth_Error, StatusMessage: "not message sender"}
+		return resp, errors.New("not message sender")
+	}
+	extraStr := message.GetExtra()
+	var extra map[string]interface{}
+	_ = json.Unmarshal([]byte(extraStr), &extra)
+	if extra == nil {
+		extra = make(map[string]interface{})
+	}
+	extra["is_recall"] = true
+	extraBytes, _ := json.Marshal(extra)
+	message.Extra = string(extraBytes)
+	err = StoreMessage(ctx, message)
+	if err != nil {
+		logrus.Errorf("[RecallMessage] StoreMessage err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
+		return resp, err
+	}
+	cmdMessage := map[string]interface{}{
+		"msg_id": message.GetMsgId(),
+		"extra":  message.GetExtra(),
+	}
+	cmdMessageBytes, _ := json.Marshal(cmdMessage)
+	sendMessageRequest := &im.SendMessageRequest{
+		SenderId:    req.GetUserId(),
+		SenderType:  int32(im.SenderType_User),
+		ConShortId:  req.GetConShortId(),
+		ConId:       message.GetConId(),
+		ConType:     message.GetConType(),
+		MsgType:     int32(im.MessageType_UpdateMessage),
+		MsgContent:  string(cmdMessageBytes),
+		ClientMsgId: 0,
+	}
+	_, err = SendMessage(ctx, sendMessageRequest)
+	if err != nil {
+		logrus.Errorf("[RecallMessage] SendMessage err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, err
+	}
 	return resp, nil
 }
 
@@ -397,22 +455,14 @@ func GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversat
 		return resp, errors.New("conversation not found")
 	}
 	//是否群成员
-	var isMember int32
-	if cores[0].GetConType() == int32(im.ConversationType_One_Chat) {
-		isMember = IsSingleMember(ctx, cores[0].GetConId(), req.GetUserId())
-	} else if cores[0].GetConType() == int32(im.ConversationType_AI_Chat) {
-		isMember = IsAIMember(ctx, cores[0].GetConId(), int32(im.SenderType_User), req.GetUserId())
-	} else if cores[0].GetConType() == int32(im.ConversationType_Group_Chat) {
-		status, err := IsGroupsMember(ctx, []int64{req.GetConShortId()}, req.GetUserId())
-		if err != nil {
-			logrus.Errorf("[GetMessageByConversation] IsGroupsMember err. err = %v", err)
-			resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
-			return resp, err
-		}
-		isMember = status[req.GetConShortId()]
+	isMember, err := checkConversationMember(ctx, req.GetConShortId(), cores[0].GetConId(), cores[0].GetConType(), req.GetSenderType(), req.GetSenderId())
+	if err != nil {
+		logrus.Errorf("[GetMessageByConversation] checkConversationMember err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
+		return resp, err
 	}
-	if isMember != 1 {
-		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "conversation not member"}
+	if !isMember {
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Auth_Error, StatusMessage: "not conversation member"}
 		return resp, errors.New("not conversation member")
 	}
 	//拉取会话链

@@ -10,6 +10,11 @@ type IMServerImpl struct {
 	im.UnimplementedIMServiceServer
 }
 
+func (s *IMServerImpl) GetInitInfo(ctx context.Context, req *im.GetInitInfoRequest) (*im.GetInitInfoResponse, error) {
+	resp, _ := biz.GetInitInfo(ctx, req)
+	return resp, nil
+}
+
 func (s *IMServerImpl) SendMessage(ctx context.Context, req *im.SendMessageRequest) (*im.SendMessageResponse, error) {
 	resp, _ := biz.SendMessage(ctx, req)
 	return resp, nil
@@ -35,6 +40,11 @@ func (s *IMServerImpl) MarkRead(ctx context.Context, req *im.MarkReadRequest) (*
 	return resp, nil
 }
 
+func (s *IMServerImpl) RecallMessage(ctx context.Context, req *im.RecallMessageRequest) (*im.RecallMessageResponse, error) {
+	resp, _ := biz.RecallMessage(ctx, req)
+	return resp, nil
+}
+
 func (s *IMServerImpl) CreateConversation(ctx context.Context, req *im.CreateConversationRequest) (*im.CreateConversationResponse, error) {
 	resp, _ := biz.CreateConversation(ctx, req)
 	return resp, nil
@@ -45,13 +55,43 @@ func (s *IMServerImpl) GetConversationInfo(ctx context.Context, req *im.GetConve
 	return resp, nil
 }
 
+func (s *IMServerImpl) UpdateConversationCore(ctx context.Context, req *im.UpdateConversationCoreRequest) (*im.UpdateConversationCoreResponse, error) {
+	resp, _ := biz.UpdateConversationCore(ctx, req)
+	return resp, nil
+}
+
+func (s *IMServerImpl) UpdateConversationSetting(ctx context.Context, req *im.UpdateConversationSettingRequest) (*im.UpdateConversationSettingResponse, error) {
+	resp, _ := biz.UpdateConversationSetting(ctx, req)
+	return resp, nil
+}
+
+func (s *IMServerImpl) UpdateConversationMember(ctx context.Context, req *im.UpdateConversationMemberRequest) (*im.UpdateConversationMemberResponse, error) {
+	resp, _ := biz.UpdateConversationMember(ctx, req)
+	return resp, nil
+}
+
+func (s *IMServerImpl) DeleteConversation(ctx context.Context, req *im.DeleteConversationRequest) (*im.DeleteConversationResponse, error) {
+	resp, _ := biz.DeleteConversation(ctx, req)
+	return resp, nil
+}
+
 func (s *IMServerImpl) GetConversationMembers(ctx context.Context, req *im.GetConversationMembersRequest) (*im.GetConversationMembersResponse, error) {
 	resp, _ := biz.GetConversationMembers(ctx, req)
 	return resp, nil
 }
 
+func (s *IMServerImpl) GetConversationMembersByIds(ctx context.Context, req *im.GetConversationMembersByIdsRequest) (*im.GetConversationMembersByIdsResponse, error) {
+	resp, _ := biz.GetConversationMembersByIds(ctx, req)
+	return resp, nil
+}
+
 func (s *IMServerImpl) AddConversationMembers(ctx context.Context, req *im.AddConversationMembersRequest) (*im.AddConversationMembersResponse, error) {
 	resp, _ := biz.AddConversationMembers(ctx, req)
+	return resp, nil
+}
+
+func (s *IMServerImpl) RemoveConversationMember(ctx context.Context, req *im.RemoveConversationMemberRequest) (*im.RemoveConversationMemberResponse, error) {
+	resp, _ := biz.RemoveConversationMember(ctx, req)
 	return resp, nil
 }
 
@@ -90,7 +130,17 @@ func (s *IMServerImpl) AddConversationAgents(ctx context.Context, req *im.AddCon
 	return resp, nil
 }
 
+func (s *IMServerImpl) RemoveConversationAgent(ctx context.Context, req *im.RemoveConversationAgentRequest) (*im.RemoveConversationAgentResponse, error) {
+	resp, _ := biz.RemoveConversationAgent(ctx, req)
+	return resp, nil
+}
+
 func (s *IMServerImpl) GetConversationAgents(ctx context.Context, req *im.GetConversationAgentsRequest) (*im.GetConversationAgentsResponse, error) {
 	resp, _ := biz.GetConversationAgents(ctx, req)
+	return resp, nil
+}
+
+func (s *IMServerImpl) GetConversationAgentsByIds(ctx context.Context, req *im.GetConversationAgentsByIdsRequest) (*im.GetConversationAgentsByIdsResponse, error) {
+	resp, _ := biz.GetConversationAgentsByIds(ctx, req)
 	return resp, nil
 }

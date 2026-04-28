@@ -28,6 +28,10 @@ message UserInfo{
   int64 user_id = 1;
   string username = 2;
   string avatar = 3;
+  int64 create_time = 4;
+  int64 modify_time = 5;
+  int32 status = 6;
+  string extra = 7;
 }
 
 message GetUserInfosRequest{
@@ -38,12 +42,22 @@ message GetUserInfosResponse{
   common.BaseResp baseResp = 255;
 }
 
+message UpdateUserInfoRequest{
+  int64 user_id = 1;
+  string type = 2;
+  string value = 3;
+}
+message UpdateUserInfoResponse{
+  common.BaseResp baseResp = 255;
+}
+
 message SearchUsersRequest{
   string keyword = 1;
   int32 page = 2;
 }
 message SearchUsersResponse{
   repeated UserInfo user_infos = 1;
+  bool has_more = 2;
   common.BaseResp baseResp = 255;
 }
 
@@ -67,20 +81,19 @@ message MIsFollowResponse{
 
 message GetFollowListRequest{
   int64 user_id = 1;
-  int64 cursor = 2;
-  int64 limit = 3;
+  int32 page = 2;
 }
 message GetFollowListResponse{
   repeated int64 user_ids = 1;
-  int64 total = 2;
-  bool has_more = 3;
+  bool has_more = 2;
   common.BaseResp baseResp = 255;
 }
 
 message MGetFollowCountRequest{
   repeated int64 user_ids = 1;
-  bool need_follow = 2;
-  bool need_friend = 3;
+  bool need_following = 2;
+  bool need_follower = 3;
+  bool need_friend = 4;
 }
 message MGetFollowCountResponse{
   map<int64, int64> following_count = 1;
@@ -232,11 +245,21 @@ message ForwardRequest{
   int64 user_id = 1;
   string entity_type = 2;
   int64 entity_id = 3;
-  int64 conversation_id = 4;
+  int64 con_short_id = 4;
 }
 message ForwardResponse{
   common.BaseResp baseResp = 255;
 }
+
+message GetForwardCountRequest{
+  string entity_type = 1;
+  int64 entity_id = 2;
+}
+message GetForwardCountResponse{
+  int64 forward_count = 1;
+  common.BaseResp baseResp = 255;
+}
+
 message ReportClickRequest{
   int64 user_id = 1;
   repeated int64 creation_ids = 2;
@@ -279,6 +302,7 @@ service ActionService {
   rpc Login(LoginRequest)returns(LoginResponse){}
   rpc Register(RegisterRequest)returns(RegisterResponse){}
   rpc GetUserInfos(GetUserInfosRequest)returns(GetUserInfosResponse){}
+  rpc UpdateUserInfo(UpdateUserInfoRequest)returns(UpdateUserInfoResponse){}
   rpc SearchUsers(SearchUsersRequest)returns(SearchUsersResponse){}
   rpc Follow(FollowRequest)returns(FollowResponse){}
   rpc Unfollow(FollowRequest)returns(FollowResponse){}
@@ -302,5 +326,6 @@ service ActionService {
   rpc DiggComment(DiggCommentRequest)returns(DiggCommentResponse){}
   rpc CancelDiggComment(DiggCommentRequest)returns(DiggCommentResponse){}
   rpc Forward(ForwardRequest)returns(ForwardResponse){}
+  rpc GetForwardCount(GetForwardCountRequest)returns(GetForwardCountResponse){}
   rpc ReportClick(ReportClickRequest)returns(ReportClickResponse){}
 }

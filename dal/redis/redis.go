@@ -21,6 +21,7 @@ type RedisService interface {
 	HDel(ctx context.Context, key string, field string) error
 	HExists(ctx context.Context, key string, field string) (bool, error)
 	ZAdd(ctx context.Context, key string, values []redis.Z) error
+	ZRem(ctx context.Context, key string, member string) error
 	ZScore(ctx context.Context, key string, member string) (float64, error)
 	ZRange(ctx context.Context, key string, start, stop int64) ([]string, error)
 	ZCard(ctx context.Context, key string) (int64, error)
@@ -154,6 +155,15 @@ func (r *RedisServiceImpl) ZAdd(ctx context.Context, key string, values []redis.
 	_, err := r.client.ZAdd(ctx, key, values...).Result()
 	if err != nil {
 		logrus.Errorf("[ZAdd] redis zadd err. err = %v", err)
+		return err
+	}
+	return nil
+}
+
+func (r *RedisServiceImpl) ZRem(ctx context.Context, key string, member string) error {
+	_, err := r.client.ZRem(ctx, key, member).Result()
+	if err != nil {
+		logrus.Errorf("[ZRem] redis zrem err. err = %v", err)
 		return err
 	}
 	return nil

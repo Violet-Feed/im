@@ -14,6 +14,7 @@ enum StatusCode{
   Duplicate_Error = 1005;
   RetryTime_Error = 1006;
   Not_Found_Error = 1007;
+  Auth_Error = 1008;
   Unknown_Error = 9999;
 }
 message BaseResp{

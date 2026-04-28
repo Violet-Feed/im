@@ -27,15 +27,28 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 	}
 	conShortId := req.GetConShortId()
 	//判断群是否存在
-	cores, err := GetConversationCores(ctx, []int64{conShortId}, false)
+	cores, err := GetConversationCores(ctx, []int64{conShortId}, true)
 	if err != nil {
 		logrus.Errorf("[AddConversationMembers] GetConversationCores err. err = %v", err)
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
 		return resp, err
 	}
 	if len(cores) == 0 || cores[0] == nil || cores[0].GetStatus() != 0 || cores[0].GetConType() != int32(im.ConversationType_Group_Chat) {
-		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "会话不存在"}
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "conversation not found"}
 		return resp, nil
+	}
+	core := cores[0]
+	if core.GetMemberCount() != 0 {
+		isMember, err := checkConversationMember(ctx, req.GetConShortId(), core.GetConId(), core.GetConType(), int32(im.SenderType_User), req.GetOperator())
+		if err != nil {
+			logrus.Errorf("[AddConversationMembers] checkConversationMember err. err = %v", err)
+			resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+			return resp, err
+		}
+		if !isMember {
+			resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Auth_Error, StatusMessage: "not conversation member"}
+			return resp, errors.New("not conversation member")
+		}
 	}
 	//获取成员数量
 	locked := dal.RedisServer.Lock(ctx, fmt.Sprintf("user_count:%d", conShortId))
@@ -95,7 +108,7 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 		SenderId:    0,
 		SenderType:  int32(im.SenderType_Conv),
 		ConShortId:  req.GetConShortId(),
-		ConId:       req.GetConId(),
+		ConId:       core.GetConId(),
 		ConType:     int32(im.ConversationType_Group_Chat),
 		MsgType:     int32(im.MessageType_Conversation),
 		MsgContent:  string(conMessageByte),
@@ -109,6 +122,127 @@ func AddConversationMembers(ctx context.Context, req *im.AddConversationMembersR
 	//个人认为流程：redis加锁，获取成员数量判断是否超限，存入数据库，发送普通消息，解锁，入单链，对于新成员设置已读起点终点minIndex，入用户链，对于新成员获取badge设置readBadge
 	//再次入群获取保存badgeCount->判断成员数量limit->保存userModels->再次判断limit，删除成员
 	//拉会话链，获取index起点,设置已读起点->发送进群命令消息->发送挡板消息
+	return resp, nil
+}
+
+func RemoveConversationMember(ctx context.Context, req *im.RemoveConversationMemberRequest) (resp *im.RemoveConversationMemberResponse, err error) {
+	resp = &im.RemoveConversationMemberResponse{
+		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
+	}
+	cores, err := GetConversationCores(ctx, []int64{req.GetConShortId()}, false)
+	if err != nil {
+		logrus.Errorf("[RemoveConversationMember] GetConversationCores err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, err
+	}
+	if len(cores) == 0 || cores[0] == nil || cores[0].GetStatus() != 0 || cores[0].GetConType() != int32(im.ConversationType_Group_Chat) {
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "conversation not found"}
+		return resp, nil
+	}
+	core := cores[0]
+	isMember, err := checkConversationMember(ctx, req.GetConShortId(), core.GetConId(), core.GetConType(), int32(im.SenderType_User), req.GetOperator())
+	if err != nil {
+		logrus.Errorf("[RemoveConversationMembers] checkConversationMember err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, err
+	}
+	if !isMember {
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Auth_Error, StatusMessage: "not conversation member"}
+		return resp, errors.New("not conversation member")
+	}
+	if err := model.DeleteUserInfo(ctx, req.GetConShortId(), req.GetMember()); err != nil {
+		logrus.Errorf("[RemoveConversationMembers] DeleteUserInfos err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, err
+	}
+	if err := model.DeleteSettingInfo(ctx, req.GetMember(), req.GetConShortId()); err != nil {
+		logrus.Errorf("[RemoveConversationMembers] DeleteSettingInfo err. err = %v", err)
+	}
+	conMessage := map[string]interface{}{
+		"type":     im.ConMessageType_Remove_Member,
+		"operator": req.GetOperator(),
+		"content":  req.GetMember(),
+	}
+	conMessageByte, _ := json.Marshal(conMessage)
+	sendMessageRequest := &im.SendMessageRequest{
+		SenderId:    0,
+		SenderType:  int32(im.SenderType_Conv),
+		ConShortId:  req.GetConShortId(),
+		ConId:       core.GetConId(),
+		ConType:     int32(im.ConversationType_Group_Chat),
+		MsgType:     int32(im.MessageType_Conversation),
+		MsgContent:  string(conMessageByte),
+		ClientMsgId: 0,
+	}
+	_, err = SendMessage(ctx, sendMessageRequest)
+	if err != nil {
+		logrus.Errorf("[RemoveConversationMembers] SendMessage err. err = %v", err)
+	}
+	return resp, nil
+}
+
+func UpdateConversationMember(ctx context.Context, req *im.UpdateConversationMemberRequest) (resp *im.UpdateConversationMemberResponse, err error) {
+	resp = &im.UpdateConversationMemberResponse{
+		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
+	}
+	cores, err := GetConversationCores(ctx, []int64{req.GetConShortId()}, false)
+	if err != nil {
+		logrus.Errorf("[UpdateConversationMember] GetConversationCores err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, err
+	}
+	if len(cores) == 0 || cores[0] == nil || cores[0].GetStatus() != 0 || cores[0].GetConType() != int32(im.ConversationType_Group_Chat) {
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "conversation not found"}
+		return resp, nil
+	}
+	core := cores[0]
+	userMap, err := model.GetUserInfos(ctx, req.GetConShortId(), []int64{req.GetUserId()}, false)
+	if err != nil {
+		logrus.Errorf("[UpdateConversationMember] GetUserInfos err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, err
+	}
+	if userMap == nil || userMap[req.GetUserId()] == nil || userMap[req.GetUserId()].Status != 0 {
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Auth_Error, StatusMessage: "not conversation member"}
+		return resp, errors.New("not conversation member")
+	}
+	userInfo := userMap[req.GetUserId()]
+	var updateMemberType im.UpdateMemberType
+	switch req.GetType() {
+	case "nickname":
+		updateMemberType = im.UpdateMemberType_Modify_Nickname
+		userInfo.NickName = req.GetValue()
+		err = model.UpdateUserInfo(ctx, userInfo)
+	default:
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Param_Error, StatusMessage: "invalid type"}
+		return resp, errors.New("invalid type")
+	}
+	if err != nil {
+		logrus.Errorf("[UpdateConversationMember] UpdateConversationSetting err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, err
+	}
+	cmdMessage := map[string]interface{}{
+		"type":    updateMemberType,
+		"content": req.GetValue(),
+	}
+	cmdMessageByte, _ := json.Marshal(cmdMessage)
+	sendMessageRequest := &im.SendMessageRequest{
+		SenderId:    req.GetUserId(),
+		SenderType:  int32(im.SenderType_User),
+		ConShortId:  req.GetConShortId(),
+		ConId:       core.ConId,
+		ConType:     int32(im.ConversationType_Group_Chat),
+		MsgType:     int32(im.MessageType_UpdateMember),
+		MsgContent:  string(cmdMessageByte),
+		ClientMsgId: 0,
+	}
+	_, err = SendMessage(ctx, sendMessageRequest)
+	if err != nil {
+		logrus.Errorf("[UpdateConversationMember] SendMessage err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, err
+	}
 	return resp, nil
 }
 
@@ -129,6 +263,13 @@ func GetConversationMembers(ctx context.Context, req *im.GetConversationMembersR
 		return resp, nil
 	}
 	resp.Members = userInfos
+	return resp, nil
+}
+
+func GetConversationMembersByIds(ctx context.Context, req *im.GetConversationMembersByIdsRequest) (*im.GetConversationMembersByIdsResponse, error) {
+	resp := &im.GetConversationMembersByIdsResponse{
+		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
+	}
 	return resp, nil
 }
 
@@ -155,6 +296,29 @@ func GetConversationMemberInfos(ctx context.Context, conShortId int64, userIds [
 		userInfos = append(userInfos, model.PackUserInfo(userMap[id]))
 	}
 	return userInfos, nil
+}
+
+func checkConversationMember(ctx context.Context, conShortId int64, conId string, conType int32, senderType int32, senderId int64) (bool, error) {
+	var isMember int32
+	if conType == int32(im.ConversationType_One_Chat) {
+		isMember = IsSingleMember(ctx, conId, senderId)
+	} else if conType == int32(im.ConversationType_AI_Chat) {
+		isMember = IsAIMember(ctx, conId, senderType, senderId)
+	} else if conType == int32(im.ConversationType_Group_Chat) {
+		if senderType == int32(im.SenderType_Conv) {
+			isMember = 1
+		} else if senderType == int32(im.SenderType_User) {
+			status, err := IsGroupsMember(ctx, []int64{conShortId}, senderId)
+			if err != nil {
+				logrus.Errorf("[checkConversationMember] IsGroupsMember err. err = %v", err)
+				return false, err
+			}
+			isMember = status[conShortId]
+		} else {
+			isMember, _ = IsGroupAI(ctx, conShortId, senderId)
+		}
+	}
+	return isMember == 1, nil
 }
 
 func IsGroupsMember(ctx context.Context, conShortIds []int64, userId int64) (map[int64]int32, error) {

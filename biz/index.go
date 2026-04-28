@@ -285,3 +285,22 @@ func PullUserConIndex(ctx context.Context, userId int64, userConIndex int64, lim
 	}
 	return conShortIds, userConIndexes, nil
 }
+
+func GetLastUserCmdIndex(ctx context.Context, userId int64) (int64, error) {
+	segKey := fmt.Sprintf("user_segment:%d", userId)
+	seg, err := dal.KvrocksServer.Get(ctx, segKey)
+	if errors.Is(err, redis.Nil) {
+		return 0, nil
+	} else if err != nil {
+		logrus.Errorf("[GetLastUserCmdIndex] kvrocks get seg err. err = %v", err)
+		return 0, err
+	}
+	segment, _ := strconv.ParseInt(seg, 10, 64)
+	key := fmt.Sprintf("user_cmd_index:%d:%s", userId, seg)
+	length, err := dal.KvrocksServer.LLen(ctx, key)
+	if err != nil {
+		return 0, err
+	}
+	lastIndex := segment*SegmentLimit + length
+	return lastIndex, nil
+}

@@ -76,7 +76,32 @@ func InsertUserInfos(ctx context.Context, conShortId int64, users []*Conversatio
 	}
 	_ = dal.RedisServer.BatchSet(ctx, keys, values, UserInfoExpireTime)
 	key := fmt.Sprintf("member:%v", conShortId)
+	//todo:这里得保证一致性
 	_ = dal.RedisServer.ZAdd(ctx, key, zSetValues)
+	return nil
+}
+
+func DeleteUserInfo(ctx context.Context, conShortId int64, userId int64) error {
+	err := dal.MysqlDB.Where("con_short_id = ? and user_id = ?", conShortId, userId).Delete(&ConversationUserInfo{}).Error
+	if err != nil {
+		logrus.Errorf("[DeleteUserInfo] mysql delete user info err. err = %v", err)
+		return err
+	}
+	key := fmt.Sprintf("user:%v:%v", conShortId, userId)
+	_ = dal.RedisServer.Del(ctx, key)
+	key = fmt.Sprintf("member:%v", conShortId)
+	_ = dal.RedisServer.ZRem(ctx, key, strconv.FormatInt(userId, 10))
+	return nil
+}
+
+func UpdateUserInfo(ctx context.Context, user *ConversationUserInfo) error {
+	err := dal.MysqlDB.Save(user).Error
+	if err != nil {
+		logrus.Errorf("[UpdateUserInfo] mysql update user err. err = %v", err)
+		return err
+	}
+	key := fmt.Sprintf("user:%v:%v", user.ConShortId, user.UserId)
+	_ = dal.RedisServer.Del(ctx, key)
 	return nil
 }
 
