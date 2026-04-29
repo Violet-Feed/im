@@ -70,11 +70,6 @@ func (s *IMServerImpl) UpdateConversationMember(ctx context.Context, req *im.Upd
 	return resp, nil
 }
 
-func (s *IMServerImpl) DeleteConversation(ctx context.Context, req *im.DeleteConversationRequest) (*im.DeleteConversationResponse, error) {
-	resp, _ := biz.DeleteConversation(ctx, req)
-	return resp, nil
-}
-
 func (s *IMServerImpl) GetConversationMembers(ctx context.Context, req *im.GetConversationMembersRequest) (*im.GetConversationMembersResponse, error) {
 	resp, _ := biz.GetConversationMembers(ctx, req)
 	return resp, nil

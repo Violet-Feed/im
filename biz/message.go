@@ -263,7 +263,6 @@ func GetMessageByUser(ctx context.Context, req *im.GetMessageByUserRequest) (res
 					msgBodiesChan <- nil
 					return
 				}
-				//TODO:过滤撤回消息
 				msgBodies, err := GetMessages(ctx, msgIds)
 				if err != nil {
 					logrus.Errorf("[GetMessageByUser] GetMessage err. err = %v", err)
@@ -272,6 +271,13 @@ func GetMessageByUser(ctx context.Context, req *im.GetMessageByUserRequest) (res
 				}
 				for i, msgBody := range msgBodies {
 					msgBody.ConIndex = conIndexes[i]
+					var extra map[string]interface{}
+					_ = json.Unmarshal([]byte(msgBody.GetExtra()), &extra)
+					if extra != nil {
+						if extra["is_recall"] != nil && extra["is_recall"].(bool) == true {
+							msgBody.MsgContent = ""
+						}
+					}
 				}
 				msgBodiesChan <- msgBodies
 			}(convShortId)
@@ -374,7 +380,7 @@ func GetMessageByUser(ctx context.Context, req *im.GetMessageByUserRequest) (res
 		return resp, globalErr
 	}
 	conMessages := make([]*im.ConversationMessage, 0)
-	//TODO:通过minIndex过滤消息,过滤非成员，无core、setting
+	//TODO:过滤非成员，无core、setting
 	for i, conShortId := range conShortIds {
 		core := coresMap[conShortId]
 		conInfo := &im.ConversationInfo{
@@ -387,9 +393,18 @@ func GetMessageByUser(ctx context.Context, req *im.GetMessageByUserRequest) (res
 			ConCoreInfo:    core,
 			ConSettingInfo: settingsMap[conShortId],
 		}
+		msgBodies := msgBodiesMap[conShortId]
+		filter := len(msgBodies)
+		for j, msg := range msgBodies {
+			if msg.GetConIndex() < settingsMap[conShortId].GetMinIndex() {
+				filter = j
+				break
+			}
+		}
+		msgBodies = msgBodies[:filter]
 		conMessage := &im.ConversationMessage{
 			ConInfo:   conInfo,
-			MsgBodies: msgBodiesMap[conShortId],
+			MsgBodies: msgBodies,
 		}
 		conMessages = append(conMessages, conMessage)
 	}
@@ -478,8 +493,16 @@ func GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversat
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 		return resp, err
 	}
+	//这里按理要做minIndex的过滤
 	for i, msgBody := range msgBodies {
 		msgBody.ConIndex = conIndexes[i]
+		var extra map[string]interface{}
+		_ = json.Unmarshal([]byte(msgBody.GetExtra()), &extra)
+		if extra != nil {
+			if extra["is_recall"] != nil && extra["is_recall"].(bool) == true {
+				msgBody.MsgContent = ""
+			}
+		}
 	}
 	resp.MsgBodies = msgBodies
 	return resp, nil

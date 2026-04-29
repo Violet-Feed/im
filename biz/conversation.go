@@ -215,12 +215,78 @@ func UpdateConversationSetting(ctx context.Context, req *im.UpdateConversationSe
 	resp = &im.UpdateConversationSettingResponse{
 		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
 	}
-	return resp, nil
-}
-
-func DeleteConversation(ctx context.Context, req *im.DeleteConversationRequest) (resp *im.DeleteConversationResponse, err error) {
-	resp = &im.DeleteConversationResponse{
-		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
+	cores, err := GetConversationCores(ctx, []int64{req.GetConShortId()}, false)
+	if err != nil {
+		logrus.Errorf("[UpdateConversationSetting] GetConversationCores err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, err
+	}
+	if len(cores) == 0 || cores[0] == nil || cores[0].GetStatus() != 0 {
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Not_Found_Error, StatusMessage: "conversation not found"}
+		return resp, nil
+	}
+	core := cores[0]
+	isMember, err := checkConversationMember(ctx, req.GetConShortId(), core.ConId, core.ConType, int32(im.SenderType_User), req.GetUserId())
+	if err != nil {
+		logrus.Errorf("[UpdateConversationSetting] checkConversationMember err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, err
+	}
+	if !isMember {
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Auth_Error, StatusMessage: "not conversation member"}
+		return resp, errors.New("not conversation member")
+	}
+	settingMap, err := model.GetSettingInfo(ctx, req.GetUserId(), []int64{req.GetConShortId()})
+	if err != nil {
+		logrus.Errorf("[UpdateConversationSetting] GetSettingInfo err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, err
+	}
+	setting := settingMap[req.GetConShortId()]
+	if setting == nil {
+		settingMap, err = fillSettingModel(ctx, req.GetUserId(), []int64{req.GetConShortId()})
+		if err != nil {
+			logrus.Errorf("[UpdateConversationSetting] fillSettingModel err. err = %v", err)
+			resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+			return resp, err
+		}
+		setting = settingMap[req.GetConShortId()]
+	}
+	var updateSettingType im.UpdateSettingType
+	switch req.GetType() {
+	case "min_index":
+		updateSettingType = im.UpdateSettingType_Modify_Min_Index
+		minIndex, _ := strconv.ParseInt(req.GetValue(), 10, 64)
+		err = model.SetReadIndexStart(ctx, req.GetConShortId(), []int64{req.GetUserId()}, minIndex)
+	default:
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Param_Error, StatusMessage: "invalid type"}
+		return resp, errors.New("invalid type")
+	}
+	if err != nil {
+		logrus.Errorf("[UpdateConversationSetting] UpdateSettingInfo err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, err
+	}
+	cmdMessage := map[string]interface{}{
+		"type":    updateSettingType,
+		"content": req.GetValue(),
+	}
+	cmdMessageByte, _ := json.Marshal(cmdMessage)
+	sendMessageRequest := &im.SendMessageRequest{
+		SenderId:    req.GetUserId(),
+		SenderType:  int32(im.SenderType_User),
+		ConShortId:  req.GetConShortId(),
+		ConId:       core.ConId,
+		ConType:     core.ConType,
+		MsgType:     int32(im.MessageType_UpdateSetting),
+		MsgContent:  string(cmdMessageByte),
+		ClientMsgId: 0,
+	}
+	_, err = SendMessage(ctx, sendMessageRequest)
+	if err != nil {
+		logrus.Errorf("[UpdateConversationSetting] SendMessage err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, err
 	}
 	return resp, nil
 }
@@ -284,7 +350,7 @@ func GetConversationSettings(ctx context.Context, userId int64, conShortIds []in
 	if len(missIds) != 0 {
 		fillModel, err := fillSettingModel(ctx, userId, missIds)
 		if err != nil {
-			logrus.Errorf("[GetConversationSettings] FixSettingModel err. err = %v", err)
+			logrus.Errorf("[GetConversationSettings] fillSettingModel err. err = %v", err)
 		} else {
 			for k, v := range fillModel {
 				settingModel[k] = v

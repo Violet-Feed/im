@@ -270,6 +270,13 @@ func GetConversationMembersByIds(ctx context.Context, req *im.GetConversationMem
 	resp := &im.GetConversationMembersByIdsResponse{
 		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
 	}
+	userInfos, err := GetConversationMemberInfos(ctx, req.GetConShortId(), req.GetMemberIds())
+	if err != nil {
+		logrus.Errorf("[GetConversationMembersByIds] GetConversationMemberInfos err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, nil
+	}
+	resp.Members = userInfos
 	return resp, nil
 }
 

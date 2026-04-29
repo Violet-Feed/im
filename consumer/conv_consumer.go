@@ -71,16 +71,18 @@ func getReceivers(ctx context.Context, event *im.MessageEvent) ([]int64, error) 
 			logrus.Errorf("[ConvProcess] GetConversationMembers err. err = %v", err)
 			return nil, err
 		}
-		var conMessage map[string]interface{}
-		_ = json.Unmarshal([]byte(event.GetMsgBody().GetMsgContent()), &conMessage)
-		if int32(conMessage["type"].(float64)) == int32(im.ConMessageType_Remove_Member) {
-			removeId := int64(conMessage["content"].(float64))
-			for _, receiver := range receivers {
-				if receiver == removeId {
-					return receivers, nil
+		if event.GetMsgBody().GetMsgType() == int32(im.MessageType_Conversation) {
+			var conMessage map[string]interface{}
+			_ = json.Unmarshal([]byte(event.GetMsgBody().GetMsgContent()), &conMessage)
+			if int32(conMessage["type"].(float64)) == int32(im.ConMessageType_Remove_Member) {
+				removeId := int64(conMessage["content"].(float64))
+				for _, receiver := range receivers {
+					if receiver == removeId {
+						return receivers, nil
+					}
 				}
+				receivers = append(receivers, removeId)
 			}
-			receivers = append(receivers, removeId)
 		}
 		return receivers, nil
 	case int32(im.ConversationType_AI_Chat):

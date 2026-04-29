@@ -149,5 +149,16 @@ func GetConversationAgentsByIds(ctx context.Context, req *im.GetConversationAgen
 	resp := &im.GetConversationAgentsByIdsResponse{
 		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
 	}
+	agents, err := model.GetAgentInfosByIds(ctx, req.ConShortId, req.AgentIds)
+	if err != nil {
+		logrus.Errorf("[GetConversationAgentsByIds] GetAgentInfosByIds err. err = %v", err)
+		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error}
+		return resp, err
+	}
+	var agentInfos []*im.ConversationAgentInfo
+	for _, agent := range agents {
+		agentInfos = append(agentInfos, model.PackAgentInfo(&agent))
+	}
+	resp.Agents = agentInfos
 	return resp, nil
 }
