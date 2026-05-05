@@ -139,6 +139,16 @@ message ConversationUserInfo {
   string extra = 8;
 }
 
+message ForwardMessage {
+  int64 creation_id = 1;
+  string title = 2;
+  int32 material_type = 3;
+  string cover_url = 4;
+  int64 author_id = 5;
+  string author_name = 6;
+  string author_avatar_url = 7;
+}
+
 message GetInitInfoRequest{
   int64 user_id = 1;
 }

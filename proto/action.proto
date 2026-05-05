@@ -192,6 +192,22 @@ message CreateCommentReplyResponse{
   common.BaseResp baseResp = 255;
 }
 
+message DeleteCommentRequest{
+  int64 user_id = 1;
+  int64 comment_id = 2;
+}
+message DeleteCommentResponse{
+  common.BaseResp baseResp = 255;
+}
+
+message DeleteCommentReplyRequest{
+  int64 user_id = 1;
+  int64 reply_id = 2;
+}
+message DeleteCommentReplyResponse{
+  common.BaseResp baseResp = 255;
+}
+
 message GetCommentByIdRequest{
   int64 comment_id = 1;
 }
@@ -243,17 +259,17 @@ message DiggCommentResponse{
 
 message ForwardRequest{
   int64 user_id = 1;
-  string entity_type = 2;
-  int64 entity_id = 3;
-  int64 con_short_id = 4;
+  int64 creation_id = 2;
+  int64 con_short_id = 3;
+  string con_id = 4;
+  int32 con_type = 5;
 }
 message ForwardResponse{
   common.BaseResp baseResp = 255;
 }
 
 message GetForwardCountRequest{
-  string entity_type = 1;
-  int64 entity_id = 2;
+  int64 creation_id = 2;
 }
 message GetForwardCountResponse{
   int64 forward_count = 1;
@@ -319,6 +335,8 @@ service ActionService {
   rpc MIsDigg(MIsDiggRequest)returns(MIsDiggResponse){}
   rpc CreateComment(CreateCommentRequest)returns(CreateCommentResponse){}
   rpc CreateCommentReply(CreateCommentReplyRequest)returns(CreateCommentReplyResponse){}
+  rpc DeleteComment(DeleteCommentRequest)returns(DeleteCommentResponse){}
+  rpc DeleteCommentReply(DeleteCommentReplyRequest)returns(DeleteCommentReplyResponse){}
   rpc GetCommentById(GetCommentByIdRequest)returns(GetCommentByIdResponse){}
   rpc GetCommentList(GetCommentListRequest)returns(GetCommentListResponse){}
   rpc GetCommentReplyList(GetCommentReplyListRequest)returns(GetCommentReplyListResponse){}

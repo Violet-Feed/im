@@ -93,6 +93,16 @@ func GetConversationInfo(ctx context.Context, req *im.GetConversationInfoRequest
 		return resp, errors.New("conversation not found")
 	}
 	core := cores[0]
+	if req.GetUserId() == 0 {
+		conInfo := &im.ConversationInfo{
+			ConShortId:  req.GetConShortId(),
+			ConId:       core.GetConId(),
+			ConType:     core.GetConType(),
+			ConCoreInfo: core,
+		}
+		resp.ConInfo = conInfo
+		return resp, nil
+	}
 	setting, err := GetConversationSettings(ctx, req.GetUserId(), []int64{req.GetConShortId()})
 	if err != nil {
 		logrus.Errorf("[GetConversationInfo] GetConversationSettings err. err = %v", err)

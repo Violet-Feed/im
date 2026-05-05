@@ -93,6 +93,9 @@ func PackAgentModel(agentId int64, req *im.AddConversationAgentsRequest) *Conver
 }
 
 func PackAgentInfo(model *ConversationAgentInfo) *im.ConversationAgentInfo {
+	if model == nil {
+		return nil
+	}
 	return &im.ConversationAgentInfo{
 		ConShortId: model.ConShortId,
 		AgentId:    model.AgentId,

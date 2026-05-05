@@ -300,6 +300,9 @@ func GetConversationMemberInfos(ctx context.Context, conShortId int64, userIds [
 		return nil, err
 	}
 	for _, id := range userIds {
+		if userMap[id] == nil {
+			continue
+		}
 		userInfos = append(userInfos, model.PackUserInfo(userMap[id]))
 	}
 	return userInfos, nil
