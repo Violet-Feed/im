@@ -3,6 +3,7 @@ package kvrocks
 import (
 	"context"
 	"errors"
+	"im/conf"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -36,19 +37,11 @@ type KvrocksServiceImpl struct {
 	client *redis.Client
 }
 
-func NewKvrocksServiceImpl() KvrocksServiceImpl {
-	//if runtime.GOOS == "windows" {
-	//	kvrocksClient := redis.NewClient(&redis.Options{
-	//		Addr:     "127.0.0.1:6379",
-	//		Password: "",
-	//		DB:       1,
-	//	})
-	//	return KvrocksServiceImpl{client: kvrocksClient}
-	//}
+func NewKvrocksServiceImpl(cfg conf.KvrocksConfig) KvrocksServiceImpl {
 	kvrocksClient := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6666",
-		Password: "",
-		DB:       0,
+		Addr:     cfg.Addr,
+		Password: cfg.Password,
+		DB:       cfg.DB,
 	})
 	return KvrocksServiceImpl{client: kvrocksClient}
 }

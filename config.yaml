@@ -1,0 +1,27 @@
+server:
+  port: ":3004"
+
+mysql:
+  host: "127.0.0.1"
+  port: 3306
+  user: "root"
+  password: "root"
+  database: "violet"
+
+redis:
+  addr: "127.0.0.1:6379"
+  password: ""
+  db: 0
+
+kvrocks:
+  addr: "127.0.0.1:6666"
+  password: ""
+  db: 0
+
+rpc:
+  push_addr: "127.0.0.1:3002"
+  action_addr: "127.0.0.1:3003"
+
+rocketmq:
+  nameserver: "127.0.0.1:9876"
+  retry: 1

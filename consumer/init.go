@@ -2,6 +2,7 @@ package consumer
 
 import (
 	"im/biz/constant"
+	"im/conf"
 
 	"github.com/apache/rocketmq-client-go/v2"
 	"github.com/apache/rocketmq-client-go/v2/consumer"
@@ -11,9 +12,10 @@ import (
 
 func InitConsumer() {
 	rlog.SetLogLevel("warn")
+	ns := []string{conf.C.RocketMQ.NameServer}
 	go func() {
 		c, _ := rocketmq.NewPushConsumer(
-			consumer.WithNameServer([]string{"127.0.0.1:9876"}),
+			consumer.WithNameServer(ns),
 			consumer.WithGroupName(constant.IM_CONV_COSUMER_GROUP),
 		)
 		if err := c.Subscribe(constant.IM_CONV_TOPIC, consumer.MessageSelector{}, ConvProcess); err != nil {
@@ -25,7 +27,7 @@ func InitConsumer() {
 	}()
 	go func() {
 		c, _ := rocketmq.NewPushConsumer(
-			consumer.WithNameServer([]string{"127.0.0.1:9876"}),
+			consumer.WithNameServer(ns),
 			consumer.WithGroupName(constant.IM_USER_COSUMER_GROUP),
 		)
 		if err := c.Subscribe(constant.IM_USER_TOPIC, consumer.MessageSelector{}, UserProcess); err != nil {

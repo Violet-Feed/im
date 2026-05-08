@@ -1,6 +1,7 @@
 package main
 
 import (
+	"im/conf"
 	"im/consumer"
 	"im/dal"
 	"im/proto_gen/im"
@@ -18,9 +19,10 @@ func main() {
 		ForceColors:     true,
 	})
 	logrus.Infof("[main] server start")
+	conf.Init()
 	dal.InitService()
 	consumer.InitConsumer()
-	lis, err := net.Listen("tcp", ":3004")
+	lis, err := net.Listen("tcp", conf.C.Server.Port)
 	if err != nil {
 		logrus.Fatalf("[main] grpc listen err. err = %v", err)
 	}

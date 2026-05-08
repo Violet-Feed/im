@@ -3,6 +3,7 @@ package mq
 import (
 	"context"
 	"encoding/json"
+	"im/conf"
 	"im/proto_gen/im"
 	"im/util/backoff"
 	"strconv"
@@ -16,15 +17,18 @@ import (
 
 var p rocketmq.Producer
 
-func init() {
+func InitProducer(cfg conf.RocketMQConfig) {
 	var err error
-	p, err = rocketmq.NewProducer(producer.WithNameServer([]string{"127.0.0.1:9876"}), producer.WithRetry(1))
+	p, err = rocketmq.NewProducer(
+		producer.WithNameServer([]string{cfg.NameServer}),
+		producer.WithRetry(cfg.Retry),
+	)
 	if err != nil {
-		logrus.Fatalf("[init] rocketmq producer create err. err = %v", err)
+		logrus.Fatalf("[InitProducer] rocketmq producer create err. err = %v", err)
 	}
 	err = p.Start()
 	if err != nil {
-		logrus.Fatalf("[init] rocketmq producer run err. err = %v", err)
+		logrus.Fatalf("[InitProducer] rocketmq producer run err. err = %v", err)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"im/conf"
 	"im/proto_gen/common"
 	"im/proto_gen/push"
 
@@ -20,8 +21,8 @@ type PushServiceImpl struct {
 	client push.PushServiceClient
 }
 
-func NewPushServiceImpl() PushServiceImpl {
-	pushServiceClient, err := grpc.NewClient("127.0.0.1:3002", grpc.WithTransportCredentials(insecure.NewCredentials()))
+func NewPushServiceImpl(cfg conf.RPCConfig) PushServiceImpl {
+	pushServiceClient, err := grpc.NewClient(cfg.PushAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		logrus.Fatalf("[NewPushServiceImpl] rpc connect err. err = %v", err)
 	}

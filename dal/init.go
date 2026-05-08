@@ -1,7 +1,9 @@
 package dal
 
 import (
+	"im/conf"
 	"im/dal/kvrocks"
+	"im/dal/mq"
 	"im/dal/mysql"
 	"im/dal/redis"
 	"im/dal/rpc"
@@ -18,9 +20,10 @@ var (
 )
 
 func InitService() {
-	PushServer = rpc.NewPushServiceImpl()
-	ActionServer = rpc.NewActionServiceImpl()
-	RedisServer = redis.NewRedisServiceImpl()
-	KvrocksServer = kvrocks.NewKvrocksServiceImpl()
-	MysqlDB = mysql.NewMysqlDB()
+	PushServer = rpc.NewPushServiceImpl(conf.C.RPC)
+	ActionServer = rpc.NewActionServiceImpl(conf.C.RPC)
+	RedisServer = redis.NewRedisServiceImpl(conf.C.Redis)
+	KvrocksServer = kvrocks.NewKvrocksServiceImpl(conf.C.Kvrocks)
+	MysqlDB = mysql.NewMysqlDB(conf.C.MySQL)
+	mq.InitProducer(conf.C.RocketMQ)
 }

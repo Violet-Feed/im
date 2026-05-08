@@ -1,13 +1,15 @@
 package mysql
 
 import (
+	"im/conf"
+
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/sirupsen/logrus"
 )
 
-func NewMysqlDB() *gorm.DB {
-	db, err := gorm.Open("mysql", "root:root@tcp(127.0.0.1:3306)/violet?charset=utf8&parseTime=True&loc=Local")
+func NewMysqlDB(cfg conf.MySQLConfig) *gorm.DB {
+	db, err := gorm.Open("mysql", cfg.DSN())
 	if err != nil {
 		logrus.Fatalf("[NewMysqlDB] mysql connect err. err = %v", err)
 	}

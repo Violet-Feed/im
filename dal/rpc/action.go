@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"im/conf"
 	"im/proto_gen/action"
 
 	"github.com/sirupsen/logrus"
@@ -17,8 +18,8 @@ type ActionServiceImpl struct {
 	client action.ActionServiceClient
 }
 
-func NewActionServiceImpl() ActionServiceImpl {
-	actionServiceClient, err := grpc.NewClient("127.0.0.1:3003", grpc.WithTransportCredentials(insecure.NewCredentials()))
+func NewActionServiceImpl(cfg conf.RPCConfig) ActionServiceImpl {
+	actionServiceClient, err := grpc.NewClient(cfg.ActionAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		logrus.Fatalf("[NewActionServiceImpl] rpc connect err. err = %v", err)
 	}

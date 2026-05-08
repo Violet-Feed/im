@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"errors"
+	"im/conf"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -34,11 +35,11 @@ type RedisServiceImpl struct {
 	client *redis.Client
 }
 
-func NewRedisServiceImpl() RedisServiceImpl {
+func NewRedisServiceImpl(cfg conf.RedisConfig) RedisServiceImpl {
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "",
-		DB:       0,
+		Addr:     cfg.Addr,
+		Password: cfg.Password,
+		DB:       cfg.DB,
 	})
 	return RedisServiceImpl{client: redisClient}
 }
