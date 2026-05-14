@@ -110,8 +110,8 @@ func (s *IMServerImpl) GetNoticeAggList(ctx context.Context, req *im.GetNoticeAg
 	return resp, nil
 }
 
-func (s *IMServerImpl) GetNoticeCount(ctx context.Context, req *im.GetNoticeCountRequest) (*im.GetNoticeCountResponse, error) {
-	resp, _ := biz.GetNoticeCount(ctx, req)
+func (s *IMServerImpl) GetNoticeCounts(ctx context.Context, req *im.GetNoticeCountsRequest) (*im.GetNoticeCountsResponse, error) {
+	resp, _ := biz.GetNoticeCounts(ctx, req)
 	return resp, nil
 }
 

@@ -69,6 +69,18 @@ func CreateConversation(ctx context.Context, req *im.CreateConversationRequest) 
 			resp.BaseResp.StatusCode = common.StatusCode_Server_Error
 			return resp, err
 		}
+		if len(req.GetAgentMembers()) != 0 {
+			_, err = AddConversationAgents(ctx, &im.AddConversationAgentsRequest{
+				ConShortId: conShortId,
+				AgentIds:   req.GetAgentMembers(),
+				Operator:   req.GetOwnerId(),
+			})
+			if err != nil {
+				logrus.Errorf("[CreateConversation] AddConversationAgents err. err = %v", err)
+				resp.BaseResp.StatusCode = common.StatusCode_Server_Error
+				return resp, err
+			}
+		}
 		//暂时不发命令消息
 	}
 	coreInfo := model.PackCoreInfo(coreModel)

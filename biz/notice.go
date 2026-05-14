@@ -182,25 +182,29 @@ func GetNoticeAggList(ctx context.Context, req *im.GetNoticeAggListRequest) (res
 	return resp, nil
 }
 
-func GetNoticeCount(ctx context.Context, req *im.GetNoticeCountRequest) (resp *im.GetNoticeCountResponse, err error) {
-	resp = &im.GetNoticeCountResponse{
+func GetNoticeCounts(ctx context.Context, req *im.GetNoticeCountsRequest) (resp *im.GetNoticeCountsResponse, err error) {
+	resp = &im.GetNoticeCountsResponse{
 		BaseResp: &common.BaseResp{StatusCode: common.StatusCode_Success},
 	}
-	key := fmt.Sprintf("notice_count:%d:%d", req.GetUserId(), req.GetGroup())
-	countStr, err := dal.KvrocksServer.Get(ctx, key)
-	if errors.Is(err, redis.Nil) {
-	} else if err != nil {
-		logrus.Errorf("[GetNoticeCount] kvrocks get err: %v", err)
+	var keys []string
+	for _, group := range req.Groups {
+		keys = append(keys, fmt.Sprintf("notice_count:%d:%d", req.GetUserId(), group))
+	}
+	countStrs, err := dal.KvrocksServer.MGet(ctx, keys)
+	if err != nil {
+		logrus.Errorf("[GetNoticeCounts] kvrocks get err: %v", err)
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 		return resp, err
 	}
-	var count int64
-	if countStr == "" {
-		count = 0
-	} else {
-		count, _ = strconv.ParseInt(countStr, 10, 64)
+	var countMap = make(map[int32]int64)
+	for i, group := range req.Groups {
+		if countStrs[i] == "" {
+			countMap[group] = 0
+		} else {
+			countMap[group], _ = strconv.ParseInt(countStrs[i], 10, 64)
+		}
 	}
-	resp.NoticeCount = count
+	resp.NoticeCount = countMap
 	return resp, nil
 }
 
