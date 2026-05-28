@@ -21,6 +21,7 @@ enum MessageType{
   Video = 3;
   Forward = 4;
   Hidden = 5;
+  Emoji = 6;
   Conversation = 100;
   MarkRead = 101;
   UpdateMessage = 102;
@@ -368,6 +369,36 @@ message GetConversationAgentsByIdsResponse{
   common.BaseResp baseResp = 255;
 }
 
+message EmojiInfo{
+  int64 emoji_id = 1;
+  string emoji_name = 2;
+  string emoji_uri = 3;
+  int64 owner_id = 4;
+  int64 create_time = 5;
+  int64 modify_time = 6;
+  int32 status = 7;
+  string extra = 8;
+}
+
+message AddEmojiRequest{
+  int64 user_id = 1;
+  string emoji_name = 2;
+  string emoji_uri = 3;
+}
+message AddEmojiResponse{
+  int64 emoji_id = 1;
+  common.BaseResp baseResp = 255;
+}
+
+message GetEmojiListRequest{
+  int64 user_id = 1;
+  int32 page = 2;
+}
+message GetEmojiListResponse{
+  repeated EmojiInfo emojis = 1;
+  common.BaseResp baseResp = 255;
+}
+
 enum NoticeGroup{
   NoticeGroup_Not_Use = 0;
   System_Group = 1;
@@ -473,6 +504,8 @@ service IMService{
   rpc RemoveConversationAgent(RemoveConversationAgentRequest)returns(RemoveConversationAgentResponse);
   rpc GetConversationAgents(GetConversationAgentsRequest)returns(GetConversationAgentsResponse);
   rpc GetConversationAgentsByIds(GetConversationAgentsByIdsRequest)returns(GetConversationAgentsByIdsResponse);
+  rpc AddEmoji(AddEmojiRequest)returns(AddEmojiResponse);
+  rpc GetEmojiList(GetEmojiListRequest)returns(GetEmojiListResponse);
   rpc SendNotice(SendNoticeRequest)returns(SendNoticeResponse);
   rpc GetNoticeList(GetNoticeListRequest)returns(GetNoticeListResponse);
   rpc GetNoticeAggList(GetNoticeAggListRequest)returns(GetNoticeAggListResponse);

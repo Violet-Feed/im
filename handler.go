@@ -95,6 +95,36 @@ func (s *IMServerImpl) GetMembersReadIndex(ctx context.Context, req *im.GetMembe
 	return resp, nil
 }
 
+func (s *IMServerImpl) AddConversationAgents(ctx context.Context, req *im.AddConversationAgentsRequest) (*im.AddConversationAgentsResponse, error) {
+	resp, _ := biz.AddConversationAgents(ctx, req)
+	return resp, nil
+}
+
+func (s *IMServerImpl) RemoveConversationAgent(ctx context.Context, req *im.RemoveConversationAgentRequest) (*im.RemoveConversationAgentResponse, error) {
+	resp, _ := biz.RemoveConversationAgent(ctx, req)
+	return resp, nil
+}
+
+func (s *IMServerImpl) GetConversationAgents(ctx context.Context, req *im.GetConversationAgentsRequest) (*im.GetConversationAgentsResponse, error) {
+	resp, _ := biz.GetConversationAgents(ctx, req)
+	return resp, nil
+}
+
+func (s *IMServerImpl) GetConversationAgentsByIds(ctx context.Context, req *im.GetConversationAgentsByIdsRequest) (*im.GetConversationAgentsByIdsResponse, error) {
+	resp, _ := biz.GetConversationAgentsByIds(ctx, req)
+	return resp, nil
+}
+
+func (s *IMServerImpl) AddEmoji(ctx context.Context, req *im.AddEmojiRequest) (*im.AddEmojiResponse, error) {
+	resp, _ := biz.AddEmoji(ctx, req)
+	return resp, nil
+}
+
+func (s *IMServerImpl) GetEmojiList(ctx context.Context, req *im.GetEmojiListRequest) (*im.GetEmojiListResponse, error) {
+	resp, _ := biz.GetEmojiList(ctx, req)
+	return resp, nil
+}
+
 func (s *IMServerImpl) SendNotice(ctx context.Context, req *im.SendNoticeRequest) (*im.SendNoticeResponse, error) {
 	resp, _ := biz.SendNotice(ctx, req)
 	return resp, nil
@@ -117,25 +147,5 @@ func (s *IMServerImpl) GetNoticeCounts(ctx context.Context, req *im.GetNoticeCou
 
 func (s *IMServerImpl) MarkNoticeRead(ctx context.Context, req *im.MarkNoticeReadRequest) (*im.MarkNoticeReadResponse, error) {
 	resp, _ := biz.MarkNoticeRead(ctx, req)
-	return resp, nil
-}
-
-func (s *IMServerImpl) AddConversationAgents(ctx context.Context, req *im.AddConversationAgentsRequest) (*im.AddConversationAgentsResponse, error) {
-	resp, _ := biz.AddConversationAgents(ctx, req)
-	return resp, nil
-}
-
-func (s *IMServerImpl) RemoveConversationAgent(ctx context.Context, req *im.RemoveConversationAgentRequest) (*im.RemoveConversationAgentResponse, error) {
-	resp, _ := biz.RemoveConversationAgent(ctx, req)
-	return resp, nil
-}
-
-func (s *IMServerImpl) GetConversationAgents(ctx context.Context, req *im.GetConversationAgentsRequest) (*im.GetConversationAgentsResponse, error) {
-	resp, _ := biz.GetConversationAgents(ctx, req)
-	return resp, nil
-}
-
-func (s *IMServerImpl) GetConversationAgentsByIds(ctx context.Context, req *im.GetConversationAgentsByIdsRequest) (*im.GetConversationAgentsByIdsResponse, error) {
-	resp, _ := biz.GetConversationAgentsByIds(ctx, req)
 	return resp, nil
 }

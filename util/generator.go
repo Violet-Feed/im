@@ -8,6 +8,7 @@ import (
 var (
 	MsgIdGenerator    *snowflake.Node
 	ConIdGenerator    *snowflake.Node
+	EmojiIdGenerator  *snowflake.Node
 	NoticeIdGenerator *snowflake.Node
 )
 
@@ -20,6 +21,10 @@ func init() {
 	ConIdGenerator, err = snowflake.NewNode(0)
 	if err != nil {
 		logrus.Fatalf("[main] ConIdGenerator NewNode err. err = %v", err)
+	}
+	EmojiIdGenerator, err = snowflake.NewNode(0)
+	if err != nil {
+		logrus.Fatalf("[main] EmojiIdGenerator NewNode err. err = %v", err)
 	}
 	NoticeIdGenerator, err = snowflake.NewNode(0)
 	if err != nil {
