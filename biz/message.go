@@ -46,7 +46,7 @@ func checkMessageSendRequest(req *im.SendMessageRequest) bool {
 	if req.GetConType() < 1 || req.GetConType() > 4 {
 		return false
 	}
-	if req.GetMsgType() < 1 || req.GetMsgType() > 4 && req.GetMsgType() < 100 || req.GetMsgType() > 104 {
+	if req.GetMsgType() < 1 || req.GetMsgType() > 6 && req.GetMsgType() < 100 || req.GetMsgType() > 104 {
 		return false
 	}
 	if req.GetMsgContent() == "" {
