@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"im/biz/constant"
+	"im/biz/model"
 	"im/dal"
 	"im/dal/mq"
 	"im/proto_gen/common"
@@ -495,18 +496,34 @@ func GetMessageByConversation(ctx context.Context, req *im.GetMessageByConversat
 		resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
 		return resp, err
 	}
-	//这里按理要做minIndex的过滤
-	for i, msgBody := range msgBodies {
-		msgBody.ConIndex = conIndexes[i]
+	var minIndex int64
+	if req.GetSenderType() == int32(im.SenderType_User) {
+		minIndexMap, err := model.GetReadIndexStart(ctx, []int64{req.GetConShortId()}, req.GetSenderId())
+		if err != nil {
+			logrus.Errorf("[GetMessageByConversation] GetReadIndexStart err. err = %v", err)
+			resp.BaseResp = &common.BaseResp{StatusCode: common.StatusCode_Server_Error, StatusMessage: err.Error()}
+			return resp, err
+		}
+		minIndex = minIndexMap[req.GetConShortId()]
+	} else {
+		minIndex = 0
+	}
+	filter := len(msgBodies)
+	for j, msg := range msgBodies {
+		if msg.GetConIndex() < minIndex {
+			filter = j
+			break
+		}
+		msg.ConIndex = conIndexes[j]
 		var extra map[string]interface{}
-		_ = json.Unmarshal([]byte(msgBody.GetExtra()), &extra)
+		_ = json.Unmarshal([]byte(msg.GetExtra()), &extra)
 		if extra != nil {
 			if extra["is_recall"] != nil && extra["is_recall"].(bool) == true {
-				msgBody.MsgContent = ""
+				msg.MsgContent = ""
 			}
 		}
 	}
-	resp.MsgBodies = msgBodies
+	resp.MsgBodies = msgBodies[:filter]
 	return resp, nil
 	//获取core信息(mysql)->获取成员数量(redis+mysql)->判断是否为成员(redis,mysql)->拉取会话链(loadmore)->隐藏撤回消息
 }
