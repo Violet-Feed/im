@@ -40,7 +40,7 @@ func InsertSettingInfo(ctx context.Context, setting *ConversationSettingInfo) er
 	}
 	settingByte, err := json.Marshal(setting)
 	if err == nil {
-		key := fmt.Sprintf("setting:%d:%d", setting.ConShortId, setting.UserId)
+		key := fmt.Sprintf("setting:%d:%d", setting.UserId, setting.ConShortId)
 		_ = dal.RedisServer.Set(ctx, key, string(settingByte), 1*time.Minute)
 	}
 	return nil
@@ -70,7 +70,7 @@ func InsertSettingInfos(ctx context.Context, settings []*ConversationSettingInfo
 	}
 	var keys, values []string
 	for _, setting := range settings {
-		key := fmt.Sprintf("setting:%v:%v", setting.ConShortId, setting.UserId)
+		key := fmt.Sprintf("setting:%v:%v", setting.UserId, setting.ConShortId)
 		valueByte, err := json.Marshal(setting)
 		if err != nil {
 			logrus.Errorf("[InsertSettingInfos] json marshal err. err = %v", err)
@@ -91,6 +91,15 @@ func DeleteSettingInfo(ctx context.Context, userId int64, conShortId int64) erro
 	}
 	key := fmt.Sprintf("setting:%d:%d", userId, conShortId)
 	_ = dal.RedisServer.Del(ctx, key)
+	keys := []string{
+		fmt.Sprintf("read_start:%d:%d", userId, conShortId),
+		fmt.Sprintf("read_end:%d:%d", userId, conShortId),
+		fmt.Sprintf("badge:%d:%d", userId, conShortId),
+		fmt.Sprintf("read_badge:%d:%d", userId, conShortId),
+	}
+	if err := dal.KvrocksServer.Del(ctx, keys...); err != nil {
+		logrus.Errorf("[DeleteSettingInfo] kvrocks del err. userId=%d, conShortId=%d, err=%v", userId, conShortId, err)
+	}
 	return nil
 }
 
@@ -100,7 +109,7 @@ func UpdateSettingInfo(ctx context.Context, setting *ConversationSettingInfo) er
 		logrus.Errorf("[UpdateSettingInfo] mysql update setting err. err = %v", err)
 		return err
 	}
-	key := fmt.Sprintf("setting:%d:%d", setting.ConShortId, setting.UserId)
+	key := fmt.Sprintf("setting:%d:%d", setting.UserId, setting.ConShortId)
 	_ = dal.RedisServer.Del(ctx, key)
 	return nil
 }

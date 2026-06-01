@@ -380,9 +380,11 @@ func GetMessageByUser(ctx context.Context, req *im.GetMessageByUserRequest) (res
 		return resp, globalErr
 	}
 	conMessages := make([]*im.ConversationMessage, 0)
-	//TODO:过滤非成员，无core、setting
 	for i, conShortId := range conShortIds {
 		core := coresMap[conShortId]
+		if core == nil || settingsMap[conShortId] == nil || statusMap[conShortId] != 1 {
+			continue
+		}
 		conInfo := &im.ConversationInfo{
 			ConShortId:     core.GetConShortId(),
 			ConId:          core.GetConId(),

@@ -29,7 +29,7 @@ type KvrocksService interface {
 	ZRevRange(ctx context.Context, key string, start, stop int64) ([]string, error)
 	HGet(ctx context.Context, key string, field string) (string, error)
 	HSet(ctx context.Context, key string, field string, value string) error
-	Del(ctx context.Context, key string) error
+	Del(ctx context.Context, key ...string) error
 	Expire(ctx context.Context, key string, expiration time.Duration) error
 }
 
@@ -258,8 +258,8 @@ func (k *KvrocksServiceImpl) HSet(ctx context.Context, key string, field string,
 	return nil
 }
 
-func (k *KvrocksServiceImpl) Del(ctx context.Context, key string) error {
-	_, err := k.client.Del(ctx, key).Result()
+func (k *KvrocksServiceImpl) Del(ctx context.Context, key ...string) error {
+	_, err := k.client.Del(ctx, key...).Result()
 	if err != nil {
 		logrus.Errorf("kvrocks del err. err = %v", err)
 		return err
